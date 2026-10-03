@@ -13,6 +13,7 @@ export const KEY_NAMES = [
   'REFUNDER_PK',
   'RELAYER_PK',
   'SUBMITTER_PK',
+  'VAULT_PK', // demo payments land here and refunds leave from here (DemoAdapter)
   'DEMO_DEVICE_PK',
   'DEMO_STUDENT_PK',
   'DEMO_SESSION_PK',

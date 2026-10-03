@@ -25,6 +25,8 @@ type DecodedLog = {
   transactionHash: string
 }
 
+type Placed = { lines: readonly { itemId: number; qty: number; unitPricePaise: number }[]; claimStart: number }
+
 /** Chain-derived tables, in dependency order for truncation. */
 const DERIVED = ['refunds', 'order_lines', 'orders', 'session_keys', 'devices', 'item_availability', 'chain_events']
 
@@ -111,21 +113,20 @@ export class Indexer {
     for (const bn of new Set(logs.map((l) => l.blockNumber))) {
       times.set(bn, Number((await this.client.getBlock({ blockNumber: BigInt(bn) })).timestamp))
     }
-    const lines = new Map<string, readonly { itemId: number; qty: number; unitPricePaise: number }[]>()
+    const placed = new Map<string, Placed>()
     for (const l of logs) {
       if (l.eventName !== 'OrderPlaced') continue
       const id = l.args.orderId as bigint
-      // Lines never change after placement, so the latest state is exact (no archive node needed).
-      lines.set(String(id), (await this.client.readContract({
-        address: this.cfg.address,
-        abi: canteenOrdersAbi,
-        functionName: 'getOrderLines',
-        args: [id],
-      })) as never)
+      // Lines and the claim window never change after placement, so the latest state is exact
+      // (no archive node needed).
+      const read = (functionName: 'getOrderLines' | 'getOrder') =>
+        this.client.readContract({ address: this.cfg.address, abi: canteenOrdersAbi, functionName, args: [id] })
+      const [lines, order] = await Promise.all([read('getOrderLines'), read('getOrder')])
+      placed.set(String(id), { lines: lines as Placed['lines'], claimStart: Number((order as { claimStart: number }).claimStart) })
     }
 
     await this.db.transaction(async (tx) => {
-      for (const l of logs) await this.apply(tx, l, times.get(l.blockNumber)!, lines)
+      for (const l of logs) await this.apply(tx, l, times.get(l.blockNumber)!, placed)
       await tx.query('update chain_cursor set last_processed_block = $1, updated_at = now() where id = 1', [to])
     })
     if (logs.length) this.log(`blocks ${from}-${to}: ${logs.length} events`)
@@ -170,7 +171,7 @@ export class Indexer {
     tx: Queryable,
     l: DecodedLog,
     blockTime: number,
-    lines: Map<string, readonly { itemId: number; qty: number; unitPricePaise: number }[]>,
+    placed: Map<string, Placed>,
   ): Promise<void> {
     const fresh = await tx.query(
       `insert into chain_events (tx_hash, log_index, block_number, block_time, event, args)
@@ -193,13 +194,15 @@ export class Indexer {
       case 'OrderPlaced': {
         await tx.query(
           `insert into orders (order_id, student, day_id, slot_id, token_no, payment_ref, intent_hash, total_paise,
-                               status, placed_at, placed_tx, last_event_block, last_event_log)
+                               status, placed_at, claim_start, placed_tx, last_event_block, last_event_log)
            values ($1, $2, $3, $4, $5, $6, (select intent_hash from payments where payment_ref = $6), $7,
-                   'Placed', to_timestamp($8), $9, $10, $11)
+                   'Placed', to_timestamp($8), to_timestamp($9), $10, $11, $12)
            on conflict (order_id) do nothing`,
-          [a.orderId, lc(a.student), a.dayId, a.slotId, a.tokenNo, a.paymentRef, a.totalPaise, blockTime, l.transactionHash, ...at],
+          [a.orderId, lc(a.student), a.dayId, a.slotId, a.tokenNo, a.paymentRef, a.totalPaise, blockTime,
+           placed.get(String(a.orderId))?.claimStart ?? null, l.transactionHash, ...at],
         )
-        const ls = lines.get(String(a.orderId)) ?? []
+        await tx.query(`update intents set status = 'placed', order_id = $1 where payment_ref = $2`, [a.orderId, a.paymentRef])
+        const ls = placed.get(String(a.orderId))?.lines ?? []
         for (const [i, line] of ls.entries()) {
           await tx.query(
             `insert into order_lines (order_id, line_no, item_id, qty, unit_price_paise) values ($1, $2, $3, $4, $5)

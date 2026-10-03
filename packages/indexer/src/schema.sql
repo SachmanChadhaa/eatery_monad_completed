@@ -31,13 +31,23 @@ create table if not exists students (
   created_at      timestamptz not null default now()
 );
 
+-- status: reserved -> paid -> placed, or expired (reservation lapsed unpaid),
+-- or refunded (paid but placeOrder reverted; the refund is off-chain only, spec 6.1).
 create table if not exists intents (
   intent_hash       text primary key,
   student           text not null,
+  day_id            integer,
   slot_id           smallint not null,
+  portions          integer,
   lines_json        jsonb not null,
   total_paise       integer not null,
-  razorpay_order_id text,
+  intent_json       jsonb,          -- the signed OrderIntent, as submitted
+  student_sig       text,
+  razorpay_order_id text,           -- provider charge id (Razorpay order, or the cINR charge)
+  payment_ref       text,
+  attestation       text,
+  order_id          bigint,
+  failure           text,
   status            text not null default 'reserved',
   reserved_until    timestamptz,
   created_at        timestamptz not null default now()
@@ -92,6 +102,7 @@ create table if not exists orders (
   status          text not null,
   refund_reason   text,
   placed_at       timestamptz not null,
+  claim_start     timestamptz,
   present_at      timestamptz,
   checkin_device  text,
   served_by       text,
@@ -117,7 +128,7 @@ create table if not exists refunds (
   reason             text not null,
   amount_paise       integer not null,
   status             text not null,          -- owed | paid
-  razorpay_refund_id text,                   -- set by the refund executor (P3/P8)
+  provider_refund_id text,                   -- Razorpay refund id, or the cINR refund tx (refund executor)
   refund_ref         text,                   -- as recorded on chain by recordRefundPaid
   owed_tx            text not null,
   owed_at            timestamptz not null,
@@ -142,3 +153,23 @@ create table if not exists item_availability (
   tx_hash      text not null,
   primary key (day_id, item_id)
 );
+
+-- ---------- upgrades for databases created by earlier versions ----------
+alter table intents add column if not exists day_id integer;
+alter table intents add column if not exists portions integer;
+alter table intents add column if not exists intent_json jsonb;
+alter table intents add column if not exists student_sig text;
+alter table intents add column if not exists payment_ref text;
+alter table intents add column if not exists attestation text;
+alter table intents add column if not exists order_id bigint;
+alter table intents add column if not exists failure text;
+alter table orders add column if not exists claim_start timestamptz;
+do $$ begin
+  if exists (select 1 from information_schema.columns
+             where table_name = 'refunds' and column_name = 'razorpay_refund_id') then
+    alter table refunds rename column razorpay_refund_id to provider_refund_id;
+  end if;
+end $$;
+
+-- indexes on upgraded columns go after the upgrades
+create index if not exists intents_open on intents (day_id, slot_id) where status in ('reserved', 'paid');

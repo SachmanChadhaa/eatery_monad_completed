@@ -1,0 +1,21 @@
+{
+  "name": "@canteenpos/backend",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "server": "node src/server.ts",
+    "test": "node --test test/*.test.ts",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@canteenpos/indexer": "*",
+    "@canteenpos/ops": "*",
+    "@canteenpos/sdk": "*",
+    "jose": "^6.2.12",
+    "viem": "^2.57.2"
+  }
+}
