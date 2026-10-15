@@ -544,7 +544,37 @@
     [2, 116, 92, 2, 117, 93], [6, 58, 36, 2, 59, 37], [4, 46, 20, 6, 47, 21], [7, 42, 14, 4, 43, 15],
     [4, 133, 107], [8, 59, 37, 1, 60, 38], [8, 44, 20, 4, 45, 21], [12, 33, 11, 4, 34, 12],
     [3, 145, 115, 1, 146, 116], [4, 64, 40, 5, 65, 41], [11, 36, 16, 5, 37, 17], [11, 36, 12, 5, 37, 13],
-    [5, 109, 87, 1, 110, 88], [5, 65, 41, 5, 66, 42], [5, 54, 24, 7, 55, 25], [11, 36, 12, 7, 37, 13],
+    [5, 109, 87, 1, 110, 88], [5, 65, 41, 5, 66, 42], [5, 54, 24, 7, 55, 25], [11, 36, 12],
+    // 16-20
+    [5, 122, 98, 1, 123, 99], [7, 73, 45, 3, 74, 46], [15, 43, 19, 2, 44, 20], [3, 45, 15, 13, 46, 16],
+    [1, 135, 107, 5, 136, 108], [10, 74, 46, 1, 75, 47], [1, 50, 22, 15, 51, 23], [2, 42, 14, 17, 43, 15],
+    [5, 150, 120, 1, 151, 121], [9, 69, 43, 4, 70, 44], [17, 50, 22, 1, 51, 23], [2, 42, 14, 19, 43, 15],
+    [3, 141, 113, 4, 142, 114], [3, 70, 44, 11, 71, 45], [17, 47, 21, 4, 48, 22], [9, 39, 13, 16, 40, 14],
+    [3, 135, 107, 5, 136, 108], [3, 67, 41, 13, 68, 42], [15, 54, 24, 5, 55, 25], [15, 43, 15, 10, 44, 16],
+    // 21-25
+    [4, 144, 116, 4, 145, 117], [17, 68, 42], [17, 50, 22, 6, 51, 23], [19, 46, 16, 6, 47, 17],
+    [2, 139, 111, 7, 140, 112], [17, 74, 46], [7, 54, 24, 16, 55, 25], [34, 37, 13],
+    [4, 151, 121, 5, 152, 122], [4, 75, 47, 14, 76, 48], [11, 54, 24, 14, 55, 25], [16, 45, 15, 14, 46, 16],
+    [6, 147, 117, 4, 148, 118], [6, 73, 45, 14, 74, 46], [11, 54, 24, 16, 55, 25], [30, 46, 16, 2, 47, 17],
+    [8, 132, 106, 4, 133, 107], [8, 75, 47, 13, 76, 48], [7, 54, 24, 22, 55, 25], [22, 45, 15, 13, 46, 16],
+    // 26-30
+    [10, 142, 114, 2, 143, 115], [19, 74, 46, 4, 75, 47], [28, 50, 22, 6, 51, 23], [33, 46, 16, 4, 47, 17],
+    [8, 152, 122, 4, 153, 123], [22, 73, 45, 3, 74, 46], [8, 53, 23, 26, 54, 24], [12, 45, 15, 28, 46, 16],
+    [3, 147, 117, 10, 148, 118], [3, 73, 45, 23, 74, 46], [4, 54, 24, 31, 55, 25], [11, 45, 15, 31, 46, 16],
+    [7, 146, 116, 7, 147, 117], [21, 73, 45, 7, 74, 46], [1, 53, 23, 37, 54, 24], [19, 45, 15, 26, 46, 16],
+    [5, 145, 115, 10, 146, 116], [19, 75, 47, 10, 76, 48], [15, 54, 24, 25, 55, 25], [23, 45, 15, 25, 46, 16],
+    // 31-35
+    [13, 145, 115, 3, 146, 116], [2, 74, 46, 29, 75, 47], [42, 54, 24, 1, 55, 25], [23, 45, 15, 28, 46, 16],
+    [17, 145, 115], [10, 74, 46, 23, 75, 47], [10, 54, 24, 35, 55, 25], [19, 45, 15, 35, 46, 16],
+    [17, 145, 115, 1, 146, 116], [14, 74, 46, 21, 75, 47], [29, 54, 24, 19, 55, 25], [11, 45, 15, 46, 46, 16],
+    [13, 145, 115, 6, 146, 116], [14, 74, 46, 23, 75, 47], [44, 54, 24, 7, 55, 25], [59, 46, 16, 1, 47, 17],
+    [12, 151, 121, 7, 152, 122], [12, 75, 47, 26, 76, 48], [39, 54, 24, 14, 55, 25], [22, 45, 15, 41, 46, 16],
+    // 36-40
+    [6, 151, 121, 14, 152, 122], [6, 75, 47, 34, 76, 48], [46, 54, 24, 10, 55, 25], [2, 45, 15, 64, 46, 16],
+    [17, 152, 122, 4, 153, 123], [29, 74, 46, 14, 75, 47], [49, 54, 24, 10, 55, 25], [24, 45, 15, 46, 46, 16],
+    [4, 152, 122, 18, 153, 123], [13, 74, 46, 32, 75, 47], [48, 54, 24, 14, 55, 25], [42, 45, 15, 32, 46, 16],
+    [20, 147, 117, 4, 148, 118], [40, 75, 47, 7, 76, 48], [43, 54, 24, 22, 55, 25], [10, 45, 15, 67, 46, 16],
+    [19, 148, 118, 6, 149, 119], [18, 75, 47, 31, 76, 48], [34, 54, 24, 34, 55, 25], [20, 45, 15, 61, 46, 16]
   ]
   QRRSBlock.getRSBlocks = function (typeNumber, errorCorrectLevel) {
     const rsBlock = QRRSBlock.getRsBlockTable(typeNumber, errorCorrectLevel)
@@ -704,7 +734,7 @@
                   ctx.drawImage(videoEl, 0, 0, canvas.width, canvas.height)
                   const imgData = ctx.getImageData(0, 0, canvas.width, canvas.height)
                   const code = window.jsQR(imgData.data, imgData.width, imgData.height, {
-                    inversionAttempts: 'dontInvert'
+                    inversionAttempts: 'attemptBoth'
                   })
                   if (code && code.data) {
                     onResult(code.data)
@@ -733,35 +763,87 @@
     }
   }
 
-  function scanImageFile(file, onResult, onError) {
+  async function scanImageFile(file, onResult, onError) {
     if (!file) return
-    const reader = new FileReader()
-    reader.onload = function (e) {
-      const img = new Image()
-      img.onload = function () {
-        const canvas = document.createElement('canvas')
-        canvas.width = img.width
-        canvas.height = img.height
-        const ctx = canvas.getContext('2d')
-        if (!ctx) {
-          if (onError) onError(new Error('Canvas 2D context not available'))
-          return
-        }
-        ctx.drawImage(img, 0, 0)
-        const imgData = ctx.getImageData(0, 0, canvas.width, canvas.height)
-        if (typeof window.jsQR === 'function') {
-          const code = window.jsQR(imgData.data, imgData.width, imgData.height)
-          if (code && code.data) {
-            onResult(code.data)
+    try {
+      // 1. If BarcodeDetector is natively available in the browser, try it first
+      if ('BarcodeDetector' in window) {
+        try {
+          const detector = new window.BarcodeDetector({ formats: ['qr_code'] })
+          const bitmap = await createImageBitmap(file)
+          const codes = await detector.detect(bitmap)
+          if (codes && codes.length > 0 && codes[0].rawValue) {
+            onResult(codes[0].rawValue)
             return
           }
-        }
-        if (onError) onError(new Error('No QR code detected in the selected image. Please try another image.'))
+        } catch (_) {}
       }
-      img.onerror = () => onError && onError(new Error('Could not load image file.'))
-      img.src = e.target.result
+
+      // 2. Fallback to image load + canvas resizing + jsQR with inversion
+      const reader = new FileReader()
+      reader.onload = function (e) {
+        const img = new Image()
+        img.onload = async function () {
+          if ('BarcodeDetector' in window) {
+            try {
+              const detector = new window.BarcodeDetector({ formats: ['qr_code'] })
+              const codes = await detector.detect(img)
+              if (codes && codes.length > 0 && codes[0].rawValue) {
+                onResult(codes[0].rawValue)
+                return
+              }
+            } catch (_) {}
+          }
+
+          const canvas = document.createElement('canvas')
+          let w = img.width
+          let h = img.height
+          const maxDim = 1200
+          if (w > maxDim || h > maxDim) {
+            if (w > h) {
+              h = Math.round((h * maxDim) / w)
+              w = maxDim
+            } else {
+              w = Math.round((w * maxDim) / h)
+              h = maxDim
+            }
+          }
+          canvas.width = w
+          canvas.height = h
+          const ctx = canvas.getContext('2d')
+          if (!ctx) {
+            if (onError) onError(new Error('Canvas 2D context not available'))
+            return
+          }
+          ctx.drawImage(img, 0, 0, w, h)
+          const imgData = ctx.getImageData(0, 0, w, h)
+
+          if (typeof window.jsQR === 'function') {
+            let code = window.jsQR(imgData.data, imgData.width, imgData.height, {
+              inversionAttempts: 'attemptBoth'
+            })
+            if (code && code.data) {
+              onResult(code.data)
+              return
+            }
+            code = window.jsQR(imgData.data, imgData.width, imgData.height, {
+              inversionAttempts: 'dontInvert'
+            })
+            if (code && code.data) {
+              onResult(code.data)
+              return
+            }
+          }
+
+          if (onError) onError(new Error('No QR code detected in the selected image. Please make sure the QR is clear and well-lit, or use the "⚡ Check In at Counter" button.'))
+        }
+        img.onerror = () => onError && onError(new Error('Could not load image file.'))
+        img.src = e.target.result
+      }
+      reader.readAsDataURL(file)
+    } catch (err) {
+      if (onError) onError(err)
     }
-    reader.readAsDataURL(file)
   }
 
   global.QREngine = {

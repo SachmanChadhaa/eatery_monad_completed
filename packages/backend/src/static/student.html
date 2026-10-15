@@ -1067,10 +1067,10 @@
         if (window.QREngine && typeof window.QREngine.renderSvg === 'function') {
           const svg = window.QREngine.renderSvg(JSON.stringify(activeCounterChallenge), {
             size: 210,
-            dark: '#F5E6D3',
-            light: '#1E1A18'
+            dark: '#14100E',
+            light: '#FFFFFF'
           });
-          container.innerHTML = svg;
+          container.innerHTML = `<div style="background:#FFFFFF;padding:12px;border-radius:14px;display:inline-block;box-shadow:0 4px 16px rgba(0,0,0,0.35);">${svg}</div>`;
         } else {
           container.innerHTML = '<div style="color:var(--peach);padding:14px;font-size:0.85rem;">QR Engine loaded. Click Refresh Challenge to display.</div>';
         }
@@ -1265,10 +1265,16 @@
         const studentSig = formatSignature(checkInSigObj);
 
         // Response QR payload (Spec 7.3: {v:1, orderId, challenge, studentSig})
+        const cleanChallenge = {
+          device: chal.device,
+          slotId: Number(chal.slotId),
+          nonce: chal.nonce,
+          timestamp: Number(chal.timestamp)
+        };
         const responsePayload = {
           v: 1,
           orderId: orderIdBig.toString(),
-          challenge: chal,
+          challenge: cleanChallenge,
           deviceSig: chal.deviceSig,
           studentSig: studentSig
         };
@@ -1276,17 +1282,32 @@
         lastSignedPayload = responsePayload;
         localStorage.setItem('canteen_pending_checkin', JSON.stringify(responsePayload));
 
-        // Render Response QR
-        const svg = QREngine.renderSvg(JSON.stringify(responsePayload), {
-          size: 240,
-          dark: '#FFB38A',
-          light: '#1E1A18'
-        });
-        document.getElementById('response-qr-container').innerHTML = svg;
-
+        // Stop camera stream immediately upon scan
         if (cameraStream) {
           cameraStream.stop();
           cameraStream = null;
+        }
+        const placeholder = document.getElementById('scanner-placeholder');
+        if (placeholder) {
+          placeholder.innerHTML = '<div style="color:var(--ok);font-weight:700;padding:12px;">✅ QR Scanned Successfully!</div>';
+          placeholder.style.display = 'block';
+        }
+
+        // Render Response QR safely
+        try {
+          if (window.QREngine && typeof window.QREngine.renderSvg === 'function') {
+            const svg = window.QREngine.renderSvg(JSON.stringify(responsePayload), {
+              size: 240,
+              dark: '#14100E',
+              light: '#FFFFFF'
+            });
+            const qrCont = document.getElementById('response-qr-container');
+            if (qrCont) {
+              qrCont.innerHTML = `<div style="background:#FFFFFF;padding:12px;border-radius:12px;display:inline-block;">${svg}</div>`;
+            }
+          }
+        } catch (svgErr) {
+          console.warn('Response QR SVG render note:', svgErr);
         }
 
         // Auto-submit check-in to Monad Testnet and assign table immediately!
