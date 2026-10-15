@@ -1,0 +1,538 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>CanteenPOS · Tablet KDS & Counter</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Newsreader:opsz,wght@6..72,500;6..72,600&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap">
+  <link rel="stylesheet" href="/styles.css">
+  <script src="/noble-secp256k1.js"></script>
+  <script src="/jsqr.js"></script>
+  <script src="/qr-engine.js"></script>
+</head>
+<body>
+  <header class="header-bar">
+    <div class="brand-group">
+      <h1 class="brand-title">Tablet KDS</h1>
+      <span class="brand-badge">COUNTER MODE</span>
+    </div>
+    <div class="nav-links">
+      <button class="nav-btn active" id="tab-counter" onclick="switchTab('counter')">Counter QR</button>
+      <button class="nav-btn" id="tab-queue" onclick="switchTab('queue')">Live Queue</button>
+      <button class="nav-btn" id="tab-prep" onclick="switchTab('prep')">Prep Summary</button>
+      <button class="nav-btn" id="tab-stock" onclick="switchTab('stock')">Sold Out</button>
+    </div>
+  </header>
+
+  <main class="container wide">
+    <!-- Status Strip (spec 8.1) -->
+    <div class="strip">
+      <span class="pill ok" id="device-auth-pill">Device: Authorized</span>
+      <span class="pill live" id="gas-pill">Gas: 0.18 MON</span>
+      <span class="pill" id="sync-pill">Head Sync: Live</span>
+      <span class="pill" id="chal-timer-pill">Challenge Rotates: 30s</span>
+    </div>
+
+    <!-- TAB 1: Counter Mode (Rotating Challenge QR + Scanner) -->
+    <div id="view-counter" style="display:grid;grid-template-columns:1fr 1fr;gap:20px;">
+      <!-- Challenge QR Box -->
+      <div class="bento-card" style="text-align:center;align-items:center;">
+        <h2 class="card-title">Rotating Tablet Challenge QR</h2>
+        <div class="card-subtitle">Students scan this QR to generate student-signed proof of presence.</div>
+        
+        <div id="challenge-qr-container" style="margin:16px auto;display:flex;justify-content:center;"></div>
+        
+        <div style="font-family:var(--mono);font-size:0.75rem;color:var(--cream-dim);max-width:320px;word-break:break-all;" id="chal-details">
+          Generating challenge...
+        </div>
+
+        <button type="button" class="secondary" onclick="copyChallengeJson()" style="margin-top:10px;padding:6px 14px;font-size:0.8rem;">
+          📋 Copy Challenge Payload
+        </button>
+      </div>
+
+      <!-- Scanner Box -->
+      <div class="bento-card">
+        <h2 class="card-title">Scan Student Response QR</h2>
+        <div class="card-subtitle">Point tablet camera at the student's phone.</div>
+
+        <div class="scanner-box" style="margin:10px 0;">
+          <video id="tablet-scanner-video" class="scanner-video" playsinline></video>
+          <div class="scanner-guide"></div>
+          <div id="tablet-scanner-placeholder" style="position:absolute;color:var(--cream-muted);text-align:center;">
+            <button onclick="startTabletScanner()">Activate Camera Scanner</button>
+          </div>
+        </div>
+
+        <details style="font-size:0.8rem;color:var(--cream-dim);">
+          <summary style="cursor:pointer;">Or Paste Response JSON manually</summary>
+          <div style="display:grid;gap:6px;margin-top:6px;">
+            <textarea id="manual-response-input" rows="3" placeholder='{"v":1,"orderId":"1",...}' style="font-family:var(--mono);font-size:0.75rem;"></textarea>
+            <button class="secondary" onclick="submitManualResponse()">Process Response</button>
+          </div>
+        </details>
+
+        <!-- Big Result Card (Spec 8.1) -->
+        <div id="scan-result-card" style="display:none;padding:16px;border-radius:var(--radius-md);text-align:center;margin-top:10px;">
+          <div style="font-family:var(--mono);font-size:2rem;font-weight:700;" id="result-token">TOKEN #1</div>
+          <div style="font-size:1.1rem;color:var(--cream);font-weight:600;margin-top:4px;" id="result-items">2 Vada Pav</div>
+          <div style="font-size:0.85rem;color:var(--cream-muted);margin-top:4px;" id="result-status">CHECKED IN · READY TO SERVE</div>
+          <button style="margin-top:12px;" id="btn-serve-immediate" onclick="markServedCurrent()">Mark Served</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- TAB 2: Live Queue Board (Placed, CheckedIn, Served) -->
+    <div id="view-queue" style="display:none;">
+      <div class="card-header" style="margin-bottom:16px;">
+        <div style="display:flex;gap:12px;align-items:center;">
+          <h2 class="card-title" style="margin:0;">Kitchen Orders Queue</h2>
+          <select id="queue-slot-filter" onchange="loadQueue()" style="width:auto;padding:6px 12px;">
+            <option value="">All Slots</option>
+            <option value="0">Slot 12:30</option>
+            <option value="1">Slot 13:15</option>
+          </select>
+        </div>
+        <button class="quiet" onclick="loadQueue()">Refresh Queue</button>
+      </div>
+
+      <div class="queue-board">
+        <!-- Col 1: Placed -->
+        <div class="queue-col">
+          <div class="queue-header">
+            <span class="queue-title">Placed</span>
+            <span class="pill" id="count-placed">0</span>
+          </div>
+          <div id="col-placed" style="display:grid;gap:10px;"></div>
+        </div>
+
+        <!-- Col 2: Checked In -->
+        <div class="queue-col" style="border-color:var(--peach);">
+          <div class="queue-header">
+            <span class="queue-title" style="color:var(--peach);">Checked In</span>
+            <span class="pill ok" id="count-checkedin">0</span>
+          </div>
+          <div id="col-checkedin" style="display:grid;gap:10px;"></div>
+        </div>
+
+        <!-- Col 3: Served -->
+        <div class="queue-col">
+          <div class="queue-header">
+            <span class="queue-title" style="color:var(--ok);">Served</span>
+            <span class="pill" id="count-served">0</span>
+          </div>
+          <div id="col-served" style="display:grid;gap:10px;"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- TAB 3: Prep Summary -->
+    <div id="view-prep" class="bento-card" style="display:none;">
+      <div class="card-header">
+        <div>
+          <h2 class="card-title">Morning Kitchen Prep Summary</h2>
+          <div class="card-subtitle">Aggregated baseline demand by pickup slot. Frozen at 09:00 IST.</div>
+        </div>
+        <button class="quiet" onclick="loadPrepSummary()">Refresh</button>
+      </div>
+
+      <div id="prep-table-container">
+        <!-- Dynamically rendered -->
+      </div>
+    </div>
+
+    <!-- TAB 4: Sold Out Toggles -->
+    <div id="view-stock" class="bento-card" style="display:none;">
+      <div class="card-header">
+        <div>
+          <h2 class="card-title">Kitchen Inventory & Sold Out Toggles</h2>
+          <div class="card-subtitle">Staff never see a wallet. Toggling off marks unserved orders refundable on-chain.</div>
+        </div>
+      </div>
+
+      <div id="stock-items-container" style="display:grid;gap:12px;">
+        <!-- Dynamically rendered -->
+      </div>
+    </div>
+  </main>
+
+  <script>
+    // Demo tablet device account (pre-authorized in deployments/10143.json)
+    const TABLET_DEVICE = {
+      address: '0x0f78BE7C8A0c51Ec454bfe7586d2557974f53A36',
+      privateKey: '0x6a09e37b7b8c2247f93f6363d7eb595c4024b40844e0bd0b167e3fdc181f129b'
+    };
+
+    let activeTab = 'counter';
+    let currentChallenge = null;
+    let challengeTimer = null;
+    let cameraStream = null;
+    let lastCheckedOrderId = null;
+    let itemsMap = {};
+
+    function switchTab(t) {
+      activeTab = t;
+      document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+      const activeBtn = document.getElementById('tab-' + t);
+      if (activeBtn) activeBtn.classList.add('active');
+
+      ['counter', 'queue', 'prep', 'stock'].forEach(v => {
+        const el = document.getElementById('view-' + v);
+        if (el) el.style.display = (v === t ? (v === 'counter' ? 'grid' : 'block') : 'none');
+      });
+
+      if (t === 'queue') loadQueue();
+      if (t === 'prep') loadPrepSummary();
+      if (t === 'stock') loadStock();
+    }
+
+    // --- Rotating Challenge QR (Spec 7.3) ---
+    function rotateChallenge() {
+      const now = Math.floor(Date.now() / 1000);
+      const nonce = '0x' + Array.from(Noble.secp256k1.utils.randomPrivateKey()).map(b => b.toString(16).padStart(2, '0')).join('');
+
+      const chal = {
+        device: TABLET_DEVICE.address,
+        slotId: 0,
+        nonce: nonce,
+        timestamp: now
+      };
+
+      // Sign challenge with device key
+      const CHAL_TYPEHASH = Noble.keccak_256(
+        new TextEncoder().encode("DeviceChallenge(address device,uint8 slotId,bytes32 nonce,uint48 timestamp)")
+      );
+      const structHash = Noble.keccak_256(concatBytes([
+        CHAL_TYPEHASH,
+        padAddress(chal.device),
+        padUint(chal.slotId),
+        hexToBytes(chal.nonce),
+        padUint(chal.timestamp)
+      ]));
+
+      const DOMAIN_TYPEHASH = Noble.keccak_256(
+        new TextEncoder().encode("EIP712Domain(string name,string version,uint256 chainId,address verifyingContract)")
+      );
+      const domainSep = Noble.keccak_256(concatBytes([
+        DOMAIN_TYPEHASH,
+        Noble.keccak_256(new TextEncoder().encode("CanteenOrders")),
+        Noble.keccak_256(new TextEncoder().encode("1")),
+        padUint256(10143n),
+        padAddress("0x83edd38e28e43c608c0d30b60a03adac1eacbc33")
+      ]));
+
+      const digest = Noble.keccak_256(concatBytes([
+        new Uint8Array([0x19, 0x01]),
+        domainSep,
+        structHash
+      ]));
+
+      const sigObj = Noble.secp256k1.sign(digest, TABLET_DEVICE.privateKey.replace(/^0x/, ''));
+      const deviceSig = formatSignature(sigObj);
+
+      const challengePayload = {
+        v: 1,
+        ...chal,
+        deviceSig
+      };
+
+      currentChallenge = challengePayload;
+      try {
+        localStorage.setItem('canteenpos_latest_tablet_challenge', JSON.stringify(challengePayload));
+      } catch (_) {}
+
+      // Render challenge QR
+      const svg = QREngine.renderSvg(JSON.stringify(challengePayload), {
+        size: 260,
+        dark: '#F5E6D3',
+        light: '#1E1A18'
+      });
+      document.getElementById('challenge-qr-container').innerHTML = svg;
+      document.getElementById('chal-details').textContent = `Device: ${TABLET_DEVICE.address.slice(0, 10)}... · TS: ${now}`;
+    }
+
+    function copyChallengeJson() {
+      if (!currentChallenge) return alert('Challenge not ready yet.');
+      const jsonStr = JSON.stringify(currentChallenge);
+      navigator.clipboard.writeText(jsonStr).then(() => {
+        alert('Challenge JSON copied to clipboard!\n\nNow open Student PWA -> Check-in tab -> paste into "Or Paste Challenge JSON manually", or click "Use Live Tablet Challenge"!');
+      }).catch(() => {
+        prompt('Copy this challenge payload:', jsonStr);
+      });
+    }
+
+    function startChallengeRotation() {
+      rotateChallenge();
+      let remaining = 30;
+      challengeTimer = setInterval(() => {
+        remaining--;
+        if (remaining <= 0) {
+          rotateChallenge();
+          remaining = 30;
+        }
+        document.getElementById('chal-timer-pill').textContent = `Challenge: ${remaining}s`;
+      }, 1000);
+    }
+
+    // --- Tablet Camera Scanner ---
+    async function startTabletScanner() {
+      const placeholder = document.getElementById('tablet-scanner-placeholder');
+      placeholder.innerHTML = 'Requesting camera permissions...<br><span style="font-size:0.75rem;color:var(--cream-dim);">Please click Allow in your browser popup</span>';
+      placeholder.style.display = 'block';
+      const video = document.getElementById('tablet-scanner-video');
+      cameraStream = await QREngine.startScanner(
+        video,
+        (qrText) => {
+          processResponseQR(qrText);
+        },
+        (err) => {
+          placeholder.innerHTML = `
+            <div style="color:var(--bad);font-weight:600;margin-bottom:6px;">⚠️ Camera Access Error</div>
+            <div style="font-size:0.8rem;color:var(--cream-dim);max-width:280px;margin:0 auto 10px auto;">${err.message}</div>
+            <button onclick="startTabletScanner()" style="padding:6px 14px;font-size:0.8rem;">Try Again</button>
+          `;
+          placeholder.style.display = 'block';
+        }
+      );
+      if (cameraStream) {
+        placeholder.style.display = 'none';
+      }
+    }
+
+    function submitManualResponse() {
+      const txt = document.getElementById('manual-response-input').value.trim();
+      if (!txt) return alert('Enter response QR JSON');
+      processResponseQR(txt);
+    }
+
+    async function processResponseQR(payloadRaw) {
+      try {
+        const data = typeof payloadRaw === 'string' ? JSON.parse(payloadRaw) : payloadRaw;
+        if (!data.orderId || !data.challenge || !data.studentSig) {
+          throw new Error('Invalid CheckIn Response format.');
+        }
+
+        lastCheckedOrderId = data.orderId;
+
+        // Submit check-in to Monad
+        const res = await fetch('/api/orders/check-in', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(data)
+        });
+
+        const card = document.getElementById('scan-result-card');
+        if (res.ok) {
+          card.style.display = 'block';
+          card.style.background = 'rgba(94, 158, 116, 0.2)';
+          card.style.border = '1px solid var(--ok)';
+          document.getElementById('result-token').textContent = `TOKEN #${data.orderId}`;
+          document.getElementById('result-status').textContent = 'CHECKED IN SUCCESS · HAND OVER FOOD';
+          document.getElementById('result-status').style.color = 'var(--ok)';
+        } else {
+          const err = await res.json();
+          card.style.display = 'block';
+          card.style.background = 'rgba(217, 83, 79, 0.2)';
+          card.style.border = '1px solid var(--bad)';
+          document.getElementById('result-token').textContent = `ORDER #${data.orderId}`;
+          document.getElementById('result-status').textContent = 'CHECK-IN FAILED: ' + (err.error || 'Reverted');
+          document.getElementById('result-status').style.color = 'var(--bad)';
+        }
+      } catch (e) {
+        alert('Scanner error: ' + e.message);
+      }
+    }
+
+    async function markServedCurrent() {
+      if (!lastCheckedOrderId) return;
+      const res = await fetch('/api/orders/serve', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ orderId: lastCheckedOrderId })
+      });
+      if (res.ok) {
+        alert(`Order #${lastCheckedOrderId} marked SERVED on chain!`);
+        document.getElementById('scan-result-card').style.display = 'none';
+        lastCheckedOrderId = null;
+      } else {
+        const err = await res.json();
+        alert('Serve failed: ' + (err.error || 'unknown'));
+      }
+    }
+
+    async function markServedOrder(orderId) {
+      const res = await fetch('/api/orders/serve', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ orderId })
+      });
+      if (res.ok) {
+        loadQueue();
+      } else {
+        const err = await res.json();
+        alert('Serve error: ' + (err.error || 'unknown'));
+      }
+    }
+
+    // --- Live Queue Loading ---
+    async function loadQueue() {
+      const slotFilter = document.getElementById('queue-slot-filter').value;
+      const res = await fetch(`/api/kds/queue${slotFilter !== '' ? '?slotId=' + slotFilter : ''}`);
+      const orders = await res.json();
+
+      const placed = [];
+      const checkedIn = [];
+      const served = [];
+
+      for (const o of orders) {
+        if (o.status === 'Placed') placed.push(o);
+        else if (o.status === 'CheckedIn') checkedIn.push(o);
+        else if (o.status === 'Served') served.push(o);
+      }
+
+      document.getElementById('count-placed').textContent = placed.length;
+      document.getElementById('count-checkedin').textContent = checkedIn.length;
+      document.getElementById('count-served').textContent = served.length;
+
+      const renderTicket = (o, isCheckedIn = false) => {
+        const linesStr = o.lines.map(l => `${l.qty}x ${itemsMap[l.itemId] || 'Item #' + l.itemId}`).join(', ');
+        return `
+          <div class="order-ticket ${isCheckedIn ? 'highlight' : ''}">
+            <div class="ticket-top">
+              <span class="ticket-token">Token #${o.token_no}</span>
+              <span class="pill">${new Date(o.placed_at).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</span>
+            </div>
+            <div class="ticket-items">${linesStr || 'Pre-order Items'}</div>
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-top:6px;">
+              <span style="font-family:var(--mono);font-size:0.75rem;color:var(--cream-dim);">#${o.order_id}</span>
+              ${isCheckedIn ? `<button style="padding:6px 12px;font-size:0.8rem;" onclick="markServedOrder(${o.order_id})">Serve</button>` : ''}
+            </div>
+          </div>
+        `;
+      };
+
+      document.getElementById('col-placed').innerHTML = placed.map(o => renderTicket(o)).join('') || '<div style="color:var(--cream-dim);text-align:center;padding:20px;">None</div>';
+      document.getElementById('col-checkedin').innerHTML = checkedIn.map(o => renderTicket(o, true)).join('') || '<div style="color:var(--cream-dim);text-align:center;padding:20px;">None</div>';
+      document.getElementById('col-served').innerHTML = served.slice(0, 10).map(o => renderTicket(o)).join('') || '<div style="color:var(--cream-dim);text-align:center;padding:20px;">None</div>';
+    }
+
+    // --- Prep Summary Loading ---
+    async function loadPrepSummary() {
+      const res = await fetch('/api/kds/prep');
+      const rows = await res.json();
+      const cont = document.getElementById('prep-table-container');
+
+      if (rows.length === 0) {
+        cont.innerHTML = '<div style="text-align:center;color:var(--cream-dim);padding:24px;">No prep items for today yet.</div>';
+        return;
+      }
+
+      cont.innerHTML = `
+        <table style="width:100%;border-collapse:collapse;margin-top:12px;font-size:0.95rem;">
+          <thead>
+            <tr style="border-bottom:1px solid var(--line);text-align:left;color:var(--cream-muted);font-family:var(--mono);font-size:0.8rem;">
+              <th style="padding:10px;">SLOT</th>
+              <th style="padding:10px;">ITEM</th>
+              <th style="padding:10px;text-align:right;">TOTAL PORTIONS</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${rows.map(r => `
+              <tr style="border-bottom:1px solid rgba(255,255,255,0.05);">
+                <td style="padding:10px;font-family:var(--mono);">Slot ${r.slot_id}</td>
+                <td style="padding:10px;font-weight:600;">${itemsMap[r.item_id] || 'Item #' + r.item_id}</td>
+                <td style="padding:10px;text-align:right;font-family:var(--mono);font-size:1.1rem;font-weight:700;color:var(--peach);">${r.total_qty}</td>
+              </tr>
+            `).join('')}
+          </tbody>
+        </table>
+      `;
+    }
+
+    // --- Sold Out Toggles ---
+    async function loadStock() {
+      const cfgRes = await fetch('/api/config');
+      const cfg = await cfgRes.json();
+      const cont = document.getElementById('stock-items-container');
+
+      cont.innerHTML = cfg.items.map(it => `
+        <div class="item-row" style="background:var(--surface);">
+          <div class="item-info">
+            <span class="item-name">${it.name}</span>
+            <span class="item-price">${(it.pricePaise / 100000).toFixed(3)} MON</span>
+          </div>
+          <div>
+            <button class="${it.available ? 'secondary' : ''}" style="${it.available ? '' : 'background:var(--bad);'}" onclick="toggleAvailability(${it.id}, ${!it.available})">
+              ${it.available ? 'Mark Sold Out' : 'Turn Back On'}
+            </button>
+          </div>
+        </div>
+      `).join('');
+    }
+
+    async function toggleAvailability(itemId, available) {
+      if (!confirm(`Are you sure you want to mark this item ${available ? 'AVAILABLE' : 'SOLD OUT'} on-chain?`)) return;
+      const res = await fetch('/api/admin/availability', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ itemId, available })
+      });
+      if (res.ok) {
+        alert('Item availability updated on Monad!');
+        loadStock();
+      } else {
+        const err = await res.json();
+        alert('Update error: ' + (err.error || 'unknown'));
+      }
+    }
+
+    // Helpers
+    function concatBytes(arrays) {
+      const totalLen = arrays.reduce((acc, a) => acc + a.length, 0);
+      const res = new Uint8Array(totalLen);
+      let offset = 0;
+      for (const a of arrays) {
+        res.set(a, offset);
+        offset += a.length;
+      }
+      return res;
+    }
+    function padUint(n) {
+      const b = new Uint8Array(32);
+      let val = BigInt(n);
+      for (let i = 31; i >= 0; i--) {
+        b[i] = Number(val & 0xffn);
+        val >>= 8n;
+      }
+      return b;
+    }
+    const padUint256 = padUint;
+    function padAddress(addr) {
+      const clean = addr.replace(/^0x/, '').toLowerCase().padStart(64, '0');
+      return hexToBytes(clean);
+    }
+    function hexToBytes(hex) {
+      const clean = hex.replace(/^0x/, '');
+      const bytes = new Uint8Array(clean.length / 2);
+      for (let i = 0; i < bytes.length; i++) {
+        bytes[i] = parseInt(clean.substr(i * 2, 2), 16);
+      }
+      return bytes;
+    }
+    function formatSignature(sig) {
+      const r = sig.r.toString(16).padStart(64, '0');
+      const s = sig.s.toString(16).padStart(64, '0');
+      const v = (sig.recovery + 27).toString(16).padStart(2, '0');
+      return '0x' + r + s + v;
+    }
+
+    window.addEventListener('load', async () => {
+      const cfgRes = await fetch('/api/config');
+      const cfg = await cfgRes.json();
+      for (const it of cfg.items) itemsMap[it.id] = it.name;
+      startChallengeRotation();
+    });
+  </script>
+</body>
+</html>
