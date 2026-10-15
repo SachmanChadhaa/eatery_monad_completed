@@ -1,0 +1,183 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>CanteenPOS · Owner Admin Portal</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Newsreader:opsz,wght@6..72,500;6..72,600&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap">
+  <link rel="stylesheet" href="/styles.css">
+  <script src="/qr-engine.js"></script>
+</head>
+<body>
+  <header class="header-bar">
+    <div class="brand-group">
+      <h1 class="brand-title">Owner Admin</h1>
+      <span class="brand-badge">PORTAL /SETUP</span>
+    </div>
+    <div class="nav-links">
+      <span class="pill ok" id="owner-status-pill">Deployer Key Connected</span>
+    </div>
+  </header>
+
+  <main class="container wide">
+    <!-- Top System Overview Cards -->
+    <div class="bento-grid">
+      <!-- Card 1: Authorize Tablet Device -->
+      <div class="bento-card">
+        <h2 class="card-title">Authorize New Tablet</h2>
+        <div class="card-subtitle">Authorize tablet address to submit check-ins and marks served.</div>
+        
+        <div style="display:grid;gap:8px;margin-top:8px;">
+          <label class="dim" style="font-size:0.8rem;">Tablet Device Address (0x...):</label>
+          <input type="text" id="new-device-input" placeholder="0x0f78BE7C8A0c51Ec454bfe7586d2557974f53A36">
+          <div style="display:flex;gap:10px;">
+            <button onclick="submitAuthorizeDevice()">Authorize & Fund Gas</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Card 2: Server Key Inventory -->
+      <div class="bento-card">
+        <h2 class="card-title">Contract Roles</h2>
+        <div class="card-subtitle">Separation of privilege (spec 3.1).</div>
+
+        <div style="font-size:0.82rem;display:grid;gap:6px;font-family:var(--mono);" id="roles-display">
+          <div>Attester: <span style="color:var(--peach);" id="role-attester">...</span></div>
+          <div>Refunder: <span style="color:var(--peach);" id="role-refunder">...</span></div>
+          <div>Relayer: <span style="color:var(--peach);" id="role-relayer">...</span></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Authorized Devices Registry -->
+    <div class="bento-card">
+      <div class="card-header">
+        <div>
+          <h2 class="card-title">Tablet Device Registry</h2>
+          <div class="card-subtitle">Time-scoped device validity (spec R7). A revoked tablet's earlier check-ins remain valid.</div>
+        </div>
+        <button class="quiet" onclick="loadDevices()">Refresh</button>
+      </div>
+
+      <div id="devices-list" style="display:grid;gap:10px;">
+        <!-- Dynamically rendered -->
+      </div>
+    </div>
+
+    <!-- Schedule & Pricing Configuration -->
+    <div class="bento-card">
+      <div class="card-header">
+        <div>
+          <h2 class="card-title">Schedule & Canteen Config</h2>
+          <div class="card-subtitle">Schedule edits take effect tomorrow (spec section 4).</div>
+        </div>
+      </div>
+
+      <div id="schedule-display">
+        <!-- Render current slots and prices -->
+      </div>
+    </div>
+  </main>
+
+  <script>
+    async function loadHealth() {
+      const res = await fetch('/api/health');
+      const data = await res.json();
+      if (data.roles) {
+        document.getElementById('role-attester').textContent = data.roles.attester;
+        document.getElementById('role-refunder').textContent = data.roles.refunder;
+        document.getElementById('role-relayer').textContent = data.roles.relayer;
+      }
+    }
+
+    async function loadDevices() {
+      const res = await fetch('/api/devices');
+      const devices = await res.json();
+      const cont = document.getElementById('devices-list');
+
+      if (devices.length === 0) {
+        cont.innerHTML = '<div style="color:var(--cream-dim);padding:14px;text-align:center;">No authorized devices yet.</div>';
+        return;
+      }
+
+      cont.innerHTML = devices.map(d => `
+        <div class="item-row">
+          <div class="item-info">
+            <span style="font-family:var(--mono);font-size:0.9rem;font-weight:600;color:var(--cream);">${d.address}</span>
+            <span style="font-size:0.75rem;color:var(--cream-dim);">Authorized: ${new Date(d.authorized_at).toLocaleString()}</span>
+          </div>
+          <div>
+            ${d.revoked_at
+              ? '<span class="pill bad">Revoked</span>'
+              : `<button class="quiet" style="color:var(--bad);" onclick="submitRevokeDevice('${d.address}')">Revoke Device</button>`}
+          </div>
+        </div>
+      `).join('');
+    }
+
+    async function submitAuthorizeDevice() {
+      const addr = document.getElementById('new-device-input').value.trim();
+      if (!addr || !addr.startsWith('0x')) return alert('Enter valid 0x address');
+
+      const res = await fetch('/api/devices/authorize', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ deviceAddress: addr, fundGas: true })
+      });
+
+      if (res.ok) {
+        alert(`Device ${addr} authorized and funded on Monad!`);
+        document.getElementById('new-device-input').value = '';
+        loadDevices();
+      } else {
+        const err = await res.json();
+        alert('Authorization failed: ' + (err.error || 'unknown'));
+      }
+    }
+
+    async function submitRevokeDevice(addr) {
+      if (!confirm(`Revoke device ${addr}? Check-ins signed earlier stay valid.`)) return;
+      const res = await fetch('/api/devices/revoke', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ deviceAddress: addr })
+      });
+
+      if (res.ok) {
+        alert(`Device ${addr} revoked on Monad!`);
+        loadDevices();
+      } else {
+        const err = await res.json();
+        alert('Revoke failed: ' + (err.error || 'unknown'));
+      }
+    }
+
+    async function loadSchedule() {
+      const res = await fetch('/api/config');
+      const cfg = await res.json();
+      const cont = document.getElementById('schedule-display');
+
+      cont.innerHTML = `
+        <div style="display:grid;gap:12px;font-size:0.9rem;">
+          <div style="background:var(--surface-elevated);padding:12px;border-radius:var(--radius-md);border:1px solid var(--line);">
+            <strong>Slots:</strong> ${cfg.slots.map(s => `${s.label} (${s.capacity} capacity, ${s.preorderCap} pre-order cap)`).join(' · ')}
+          </div>
+          <div style="background:var(--surface-elevated);padding:12px;border-radius:var(--radius-md);border:1px solid var(--line);">
+            <strong>Menu:</strong> ${cfg.items.map(it => `${it.name} (₹${(it.pricePaise / 100).toFixed(2)})`).join(' · ')}
+          </div>
+          <div style="color:var(--cream-dim);font-size:0.8rem;">
+            Order Window: 07:00 - 09:00 IST · College Domain: ${cfg.collegeEmailDomain}
+          </div>
+        </div>
+      `;
+    }
+
+    window.addEventListener('load', () => {
+      loadHealth();
+      loadDevices();
+      loadSchedule();
+    });
+  </script>
+</body>
+</html>

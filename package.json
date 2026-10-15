@@ -1,12 +1,20 @@
 {
   "name": "canteenpos",
   "private": true,
+  "type": "module",
   "workspaces": [
     "packages/*"
   ],
   "scripts": {
-    "build:contracts": "cd contracts && forge build",
-    "test:contracts": "cd contracts && forge test",
-    "test:sdk": "npm run test -w @canteenpos/sdk"
+    "build": "npm run build:contracts && npm run typecheck",
+    "build:contracts": "node scripts/forge.js build",
+    "typecheck": "npm run typecheck --workspaces --if-present",
+    "start": "npm run server -w @canteenpos/backend",
+    "server": "npm run server -w @canteenpos/backend",
+    "test": "npm run test:contracts && npm run test:sdk && npm run test:indexer && npm run test:backend",
+    "test:contracts": "node scripts/forge.js test",
+    "test:sdk": "npm run test -w @canteenpos/sdk",
+    "test:indexer": "npm run test -w @canteenpos/indexer",
+    "test:backend": "npm run test -w @canteenpos/backend"
   }
 }

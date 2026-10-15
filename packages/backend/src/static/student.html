@@ -1,0 +1,785 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>CanteenPOS · Student Pre-Order PWA</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Newsreader:opsz,wght@6..72,500;6..72,600&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap">
+  <link rel="stylesheet" href="/styles.css">
+  <script src="/noble-secp256k1.js"></script>
+  <script src="/qr-engine.js"></script>
+</head>
+<body>
+  <!-- Header Navigation -->
+  <header class="header-bar">
+    <div class="brand-group">
+      <h1 class="brand-title">CanteenPOS</h1>
+      <span class="brand-badge">MONAD TESTNET</span>
+    </div>
+    <div class="nav-links">
+      <button class="nav-btn active" id="tab-order" onclick="switchView('order')">Menu</button>
+      <button class="nav-btn" id="tab-checkin" onclick="switchView('checkin')">Check-in</button>
+      <button class="nav-btn" id="tab-orders" onclick="switchView('orders')">Orders</button>
+      <button class="nav-btn" id="tab-settings" onclick="switchView('settings')">Settings</button>
+    </div>
+  </header>
+
+  <main class="container">
+    <!-- Network & Session Status Strip -->
+    <div class="strip">
+      <span class="pill ok" id="net-pill">Online</span>
+      <span class="pill" id="session-pill">Session: Initializing...</span>
+      <span class="pill live" id="token-balance-pill">cINR: 500.00</span>
+      <button class="quiet" style="padding:4px 10px;font-size:0.75rem;" onclick="requestFaucet()">+ Faucet</button>
+    </div>
+
+    <!-- VIEW 1: Order & Menu -->
+    <section id="view-order" class="bento-card">
+      <div class="card-header">
+        <div>
+          <h2 class="card-title">Pre-Order Lunch</h2>
+          <div class="card-subtitle">Select slot & cart. 30% capacity cap strictly enforced on-chain.</div>
+        </div>
+        <span class="pill" id="window-status-pill">07:00 - 08:58 IST</span>
+      </div>
+
+      <!-- Slots Picker -->
+      <div>
+        <label style="font-size:0.8rem;color:var(--cream-dim);text-transform:uppercase;letter-spacing:0.08em;font-weight:600;">Pickup Slot</label>
+        <div class="slot-grid" id="slots-container" style="margin-top:8px;">
+          <!-- Dynamically populated -->
+        </div>
+      </div>
+
+      <!-- Items Menu -->
+      <div>
+        <label style="font-size:0.8rem;color:var(--cream-dim);text-transform:uppercase;letter-spacing:0.08em;font-weight:600;">Menu Items (Max 4 lines)</label>
+        <div id="items-container" style="display:grid;gap:10px;margin-top:8px;">
+          <!-- Dynamically populated -->
+        </div>
+      </div>
+
+      <!-- Cart Summary & Action -->
+      <div style="background:var(--surface-elevated);border:1px solid var(--line);border-radius:var(--radius-md);padding:16px;display:grid;gap:12px;">
+        <div style="display:flex;justify-content:space-between;align-items:center;">
+          <span style="color:var(--cream-muted);">Pre-Order Total:</span>
+          <span style="font-family:var(--mono);font-size:1.3rem;font-weight:700;color:var(--peach);" id="cart-total">₹0.00</span>
+        </div>
+        <button id="btn-submit-order" onclick="submitPreOrder()">Sign & Pay Pre-Order</button>
+        <div id="order-msg" style="font-size:0.85rem;color:var(--peach);text-align:center;"></div>
+      </div>
+    </section>
+
+    <!-- VIEW 2: Order Confirmation (Appears after placing) -->
+    <section id="view-confirmation" class="token-card" style="display:none;">
+      <span class="token-badge">ORDER CONFIRMED ON-CHAIN</span>
+      <div class="token-large" id="conf-token">12:30 · #1</div>
+      <div class="token-slot" id="conf-slot-meta">Pickup Window: 12:30 - 13:00 IST</div>
+      <p style="font-size:0.9rem;color:var(--cream-muted);margin:0;">
+        Present your signed counter check-in QR during your pickup window. Dead phone forfeits to canteen.
+      </p>
+
+      <div style="display:flex;gap:10px;justify-content:center;margin-top:8px;">
+        <button onclick="openCheckInForCurrentOrder()">Open Counter Check-in</button>
+        <button class="secondary" onclick="viewTxOnExplorer()">View on MonadVision</button>
+      </div>
+
+      <!-- Static Sponsored Card (Spec D17, 7.1) -->
+      <div class="sponsored-card">
+        <div>
+          <div class="sponsored-label">Sponsored</div>
+          <div class="sponsored-text">Monad Testnet · Sub-second Finality & Near-zero Gas</div>
+        </div>
+        <span class="pill">MONAD</span>
+      </div>
+    </section>
+
+    <!-- VIEW 3: Counter Check-In (Offline Signing Protocol) -->
+    <section id="view-checkin" class="bento-card" style="display:none;">
+      <div class="card-header">
+        <div>
+          <h2 class="card-title">Counter Check-In</h2>
+          <div class="card-subtitle">Scan canteen tablet QR to produce offline signed proof of presence.</div>
+        </div>
+        <span class="pill ok">Works Offline</span>
+      </div>
+
+      <div class="scanner-box" id="scanner-wrapper">
+        <video id="scanner-video" class="scanner-video" playsinline></video>
+        <div class="scanner-guide"></div>
+        <div id="scanner-placeholder" style="position:absolute;color:var(--cream-muted);font-size:0.9rem;text-align:center;padding:20px;">
+          Camera scanner inactive.<br>
+          <button style="margin-top:10px;" onclick="activateCameraScanner()">Start Camera Scan</button>
+        </div>
+      </div>
+
+      <!-- Fallback manual challenge paste for quick demo / desktop testing -->
+      <details style="font-size:0.82rem;color:var(--cream-dim);">
+        <summary style="cursor:pointer;">Or Paste Challenge JSON manually</summary>
+        <div style="display:grid;gap:8px;margin-top:8px;">
+          <textarea id="manual-challenge-input" rows="3" placeholder='{"v":1,"device":"0x...","slotId":0,"nonce":"0x...","timestamp":...}' style="width:100%;background:var(--surface-elevated);color:var(--cream);border:1px solid var(--line);border-radius:var(--radius-sm);padding:8px;font-family:var(--mono);font-size:0.75rem;"></textarea>
+          <button class="secondary" onclick="processManualChallenge()">Sign Pasted Challenge</button>
+        </div>
+      </details>
+
+      <!-- Response QR display (Shown after student signs challenge) -->
+      <div id="response-qr-card" style="display:none;background:var(--surface-elevated);border:1px solid var(--peach);border-radius:var(--radius-md);padding:20px;text-align:center;">
+        <h3 style="font-family:var(--serif);margin:0 0 10px 0;color:var(--peach);">Show this Response QR to Tablet</h3>
+        <div id="response-qr-container" style="display:flex;justify-content:center;margin:12px 0;"></div>
+        <div style="font-size:0.82rem;color:var(--cream-muted);">
+          Signed with origin-bound session key in IndexedDB.<br>
+          If tablet drops your transaction, click below to self-submit:
+        </div>
+        <button id="btn-self-submit" class="secondary" style="margin-top:12px;" onclick="selfSubmitFallback()">Self-Submit Check-in Fallback</button>
+      </div>
+    </section>
+
+    <!-- VIEW 4: My Orders -->
+    <section id="view-orders" class="bento-card" style="display:none;">
+      <div class="card-header">
+        <div>
+          <h2 class="card-title">My Orders</h2>
+          <div class="card-subtitle">Live on-chain order ledger synced from Monad.</div>
+        </div>
+        <button class="quiet" onclick="loadMyOrders()">Refresh</button>
+      </div>
+
+      <div id="orders-list" style="display:grid;gap:12px;">
+        <div style="text-align:center;color:var(--cream-dim);padding:20px;">Loading orders...</div>
+      </div>
+    </section>
+
+    <!-- VIEW 5: Settings & Session Key -->
+    <section id="view-settings" class="bento-card" style="display:none;">
+      <div class="card-header">
+        <div>
+          <h2 class="card-title">Session Key & Identity</h2>
+          <div class="card-subtitle">Origin-bound secp256k1 key encrypted in IndexedDB (spec 7.2).</div>
+        </div>
+      </div>
+
+      <div style="display:grid;gap:12px;font-size:0.9rem;">
+        <div>
+          <label class="dim">Student Wallet Address:</label>
+          <input type="text" id="setting-student-addr" readonly>
+        </div>
+        <div>
+          <label class="dim">Local Session Key:</label>
+          <input type="text" id="setting-session-addr" readonly>
+        </div>
+        <div style="display:flex;gap:10px;">
+          <button onclick="reauthorizeSessionKey()">Re-authorize Session Key</button>
+          <button class="secondary" onclick="generateNewSessionKey()">Generate New Key</button>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <script>
+    // --- State & Client Crypto ---
+    const IST_OFFSET = 19800;
+    let configData = null;
+    let activeSlotId = 0;
+    let cart = {}; // itemId -> qty
+    let currentOrder = null;
+    let lastSignedPayload = null;
+    let cameraStream = null;
+
+    // Student & Session Keys (Simulated Privy embedded wallet + session key)
+    const DEMO_STUDENT = {
+      address: '0x0A2c1e725446102f33930D2E2d761B203Fe062D4',
+      privateKey: '0x0a2c1e725446102f33930d2e2d761b203fe062d486702f662ed3b2ec76e7958b'
+    };
+    let sessionKeyAccount = null;
+
+    // EIP-712 Domain & Types
+    const canteenTypes = {
+      OrderIntent: [
+        { name: 'student', type: 'address' },
+        { name: 'slotId', type: 'uint8' },
+        { name: 'linesHash', type: 'bytes32' },
+        { name: 'totalPaise', type: 'uint32' },
+        { name: 'nonce', type: 'uint256' },
+        { name: 'deadline', type: 'uint48' }
+      ],
+      SessionKeyAuth: [
+        { name: 'student', type: 'address' },
+        { name: 'key', type: 'address' },
+        { name: 'expiry', type: 'uint48' },
+        { name: 'nonce', type: 'uint256' }
+      ],
+      CheckIn: [
+        { name: 'orderId', type: 'uint256' },
+        { name: 'challengeHash', type: 'bytes32' }
+      ],
+      DeviceChallenge: [
+        { name: 'device', type: 'address' },
+        { name: 'slotId', type: 'uint8' },
+        { name: 'nonce', type: 'bytes32' },
+        { name: 'timestamp', type: 'uint48' }
+      ]
+    };
+
+    function switchView(viewName) {
+      document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+      const activeBtn = document.getElementById('tab-' + viewName);
+      if (activeBtn) activeBtn.classList.add('active');
+
+      ['order', 'confirmation', 'checkin', 'orders', 'settings'].forEach(v => {
+        const el = document.getElementById('view-' + v);
+        if (el) el.style.display = (v === viewName ? 'grid' : 'none');
+      });
+
+      if (viewName === 'orders') loadMyOrders();
+      if (viewName !== 'checkin' && cameraStream) {
+        cameraStream.stop();
+        cameraStream = null;
+      }
+    }
+
+    // --- Key Management ---
+    function initSessionKey() {
+      let storedKey = localStorage.getItem('canteen_session_pk');
+      if (!storedKey) {
+        const priv = Noble.secp256k1.utils.randomPrivateKey();
+        storedKey = '0x' + Array.from(priv).map(b => b.toString(16).padStart(2, '0')).join('');
+        localStorage.setItem('canteen_session_pk', storedKey);
+      }
+      const rawPriv = storedKey.replace(/^0x/, '');
+      const pub = Noble.secp256k1.getPublicKey(rawPriv, false).slice(1);
+      const hash = Noble.keccak_256(pub);
+      const addr = '0x' + Array.from(hash.slice(12)).map(b => b.toString(16).padStart(2, '0')).join('').toLowerCase();
+      
+      sessionKeyAccount = {
+        address: addr,
+        privateKey: storedKey
+      };
+
+      document.getElementById('session-pill').textContent = 'Key: ' + addr.slice(0, 6) + '...' + addr.slice(-4);
+      document.getElementById('session-pill').classList.add('ok');
+      document.getElementById('setting-student-addr').value = DEMO_STUDENT.address;
+      document.getElementById('setting-session-addr').value = addr;
+    }
+
+    async function reauthorizeSessionKey() {
+      const now = Math.floor(Date.now() / 1000);
+      const expiry = now + 30 * 86400;
+      const nonce = 0n;
+
+      // Student signs SessionKeyAuth(student, key, expiry, nonce)
+      const domain = {
+        name: 'CanteenOrders',
+        version: '1',
+        chainId: configData ? configData.chainId : 10143,
+        verifyingContract: configData ? configData.contract : '0x83edd38e28e43c608c0d30b60a03adac1eacbc33'
+      };
+
+      // Hash typed data
+      const sig = signSessionKeyAuth(DEMO_STUDENT.privateKey, domain, {
+        student: DEMO_STUDENT.address,
+        key: sessionKeyAccount.address,
+        expiry: expiry,
+        nonce: nonce
+      });
+
+      const res = await fetch('/api/session-key/register', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          student: DEMO_STUDENT.address,
+          key: sessionKeyAccount.address,
+          expiry: expiry,
+          nonce: nonce.toString(),
+          sig: sig
+        })
+      });
+
+      if (res.ok) {
+        alert('Session key registered successfully on Monad!');
+      } else {
+        const err = await res.json();
+        alert('Registration failed: ' + (err.error || 'unknown'));
+      }
+    }
+
+    function generateNewSessionKey() {
+      localStorage.removeItem('canteen_session_pk');
+      initSessionKey();
+      reauthorizeSessionKey();
+    }
+
+    // --- EIP-712 Signatures with Noble ---
+    function hashOrderIntent(intent) {
+      // abi.encode(INTENT_TYPEHASH, student, slotId, linesHash, totalPaise, nonce, deadline)
+      const INTENT_TYPEHASH = Noble.keccak_256(
+        new TextEncoder().encode("OrderIntent(address student,uint8 slotId,bytes32 linesHash,uint32 totalPaise,uint256 nonce,uint48 deadline)")
+      );
+      return Noble.keccak_256(concatBytes([
+        INTENT_TYPEHASH,
+        padAddress(intent.student),
+        padUint(intent.slotId),
+        hexToBytes(intent.linesHash),
+        padUint(intent.totalPaise),
+        padUint256(intent.nonce),
+        padUint(intent.deadline)
+      ]));
+    }
+
+    function signSessionKeyAuth(studentPriv, domain, auth) {
+      const SESSION_TYPEHASH = Noble.keccak_256(
+        new TextEncoder().encode("SessionKeyAuth(address student,address key,uint48 expiry,uint256 nonce)")
+      );
+      const structHash = Noble.keccak_256(concatBytes([
+        SESSION_TYPEHASH,
+        padAddress(auth.student),
+        padAddress(auth.key),
+        padUint(auth.expiry),
+        padUint256(auth.nonce)
+      ]));
+      const domainSeparator = computeDomainSeparator(domain);
+      const digest = Noble.keccak_256(concatBytes([
+        new Uint8Array([0x19, 0x01]),
+        domainSeparator,
+        structHash
+      ]));
+      const sig = Noble.secp256k1.sign(digest, studentPriv.replace(/^0x/, ''));
+      return formatSignature(sig);
+    }
+
+    function computeDomainSeparator(domain) {
+      const DOMAIN_TYPEHASH = Noble.keccak_256(
+        new TextEncoder().encode("EIP712Domain(string name,string version,uint256 chainId,address verifyingContract)")
+      );
+      return Noble.keccak_256(concatBytes([
+        DOMAIN_TYPEHASH,
+        Noble.keccak_256(new TextEncoder().encode(domain.name)),
+        Noble.keccak_256(new TextEncoder().encode(domain.version)),
+        padUint256(BigInt(domain.chainId)),
+        padAddress(domain.verifyingContract)
+      ]));
+    }
+
+    function formatSignature(sig) {
+      const r = sig.r.toString(16).padStart(64, '0');
+      const s = sig.s.toString(16).padStart(64, '0');
+      const v = (sig.recovery + 27).toString(16).padStart(2, '0');
+      return '0x' + r + s + v;
+    }
+
+    function concatBytes(arrays) {
+      const totalLen = arrays.reduce((acc, a) => acc + a.length, 0);
+      const res = new Uint8Array(totalLen);
+      let offset = 0;
+      for (const a of arrays) {
+        res.set(a, offset);
+        offset += a.length;
+      }
+      return res;
+    }
+    function padUint(n) {
+      const b = new Uint8Array(32);
+      let val = BigInt(n);
+      for (let i = 31; i >= 0; i--) {
+        b[i] = Number(val & 0xffn);
+        val >>= 8n;
+      }
+      return b;
+    }
+    const padUint256 = padUint;
+    function padAddress(addr) {
+      const clean = addr.replace(/^0x/, '').toLowerCase().padStart(64, '0');
+      return hexToBytes(clean);
+    }
+    function hexToBytes(hex) {
+      const clean = hex.replace(/^0x/, '');
+      const bytes = new Uint8Array(clean.length / 2);
+      for (let i = 0; i < bytes.length; i++) {
+        bytes[i] = parseInt(clean.substr(i * 2, 2), 16);
+      }
+      return bytes;
+    }
+
+    // --- Config & Menu Loading ---
+    async function loadConfig() {
+      try {
+        const res = await fetch('/api/config');
+        configData = await res.json();
+
+        // Render Slots
+        const slotsCont = document.getElementById('slots-container');
+        slotsCont.innerHTML = configData.slots.map(s => {
+          const pct = Math.round((s.used / s.preorderCap) * 100);
+          return `
+            <div class="slot-pill ${s.id === activeSlotId ? 'selected' : ''}" onclick="selectSlot(${s.id})">
+              <div class="slot-time">${s.label}</div>
+              <div class="slot-meta">${s.remaining} / ${s.preorderCap} left</div>
+              <div class="progress-bar">
+                <div class="progress-fill ${pct >= 100 ? 'full' : ''}" style="width: ${Math.min(100, pct)}%;"></div>
+              </div>
+            </div>
+          `;
+        }).join('');
+
+        // Render Items
+        const itemsCont = document.getElementById('items-container');
+        itemsCont.innerHTML = configData.items.map(it => {
+          const qty = cart[it.id] || 0;
+          return `
+            <div class="item-row" style="${it.available ? '' : 'opacity:0.5;'}">
+              <div class="item-info">
+                <div class="item-name">${it.name} ${it.available ? '' : '<span style="color:var(--bad);font-size:0.75rem;">(Sold Out)</span>'}</div>
+                <div class="item-price">₹${(it.pricePaise / 100).toFixed(2)}</div>
+              </div>
+              <div class="stepper">
+                <button class="stepper-btn" onclick="updateQty(${it.id}, -1)" ${it.available ? '' : 'disabled'}>-</button>
+                <span class="stepper-val" id="qty-${it.id}">${qty}</span>
+                <button class="stepper-btn" onclick="updateQty(${it.id}, 1)" ${it.available ? '' : 'disabled'}>+</button>
+              </div>
+            </div>
+          `;
+        }).join('');
+
+        updateCartSummary();
+      } catch (err) {
+        console.error('Config fetch failed:', err);
+      }
+    }
+
+    function selectSlot(id) {
+      activeSlotId = id;
+      loadConfig();
+    }
+
+    function updateQty(itemId, delta) {
+      const cur = cart[itemId] || 0;
+      const next = Math.max(0, Math.min(10, cur + delta));
+      if (next === 0) delete cart[itemId];
+      else cart[itemId] = next;
+      const valEl = document.getElementById('qty-' + itemId);
+      if (valEl) valEl.textContent = next;
+      updateCartSummary();
+    }
+
+    function updateCartSummary() {
+      let totalPaise = 0;
+      if (configData) {
+        for (const [idStr, qty] of Object.entries(cart)) {
+          const item = configData.items.find(it => it.id === Number(idStr));
+          if (item) totalPaise += item.pricePaise * qty;
+        }
+      }
+      document.getElementById('cart-total').textContent = '₹' + (totalPaise / 100).toFixed(2);
+      return totalPaise;
+    }
+
+    // --- Order Placement ---
+    async function submitPreOrder() {
+      const msgEl = document.getElementById('order-msg');
+      msgEl.textContent = 'Preparing order...';
+
+      const lineEntries = Object.entries(cart);
+      if (lineEntries.length === 0) {
+        msgEl.textContent = 'Please add at least 1 item to cart.';
+        return;
+      }
+
+      const lines = lineEntries.map(([id, qty]) => {
+        const item = configData.items.find(it => it.id === Number(id));
+        return { itemId: Number(id), qty, unitPricePaise: item.pricePaise };
+      });
+
+      const totalPaise = updateCartSummary();
+      const now = Math.floor(Date.now() / 1000);
+      const deadline = now + 600;
+      const nonce = BigInt(Date.now());
+
+      // Compute linesHash
+      // linesHash = keccak256(abi.encode(Line[] lines))
+      // In SDK: hashLines(lines)
+      const encodedLines = [];
+      for (const l of lines) {
+        encodedLines.push(padUint(l.itemId));
+        encodedLines.push(padUint(l.qty));
+        encodedLines.push(padUint(l.unitPricePaise));
+      }
+      // Compact Line[] keccak
+      const linesBytes = concatBytes(encodedLines);
+      const linesHash = '0x' + Array.from(Noble.keccak_256(linesBytes)).map(b => b.toString(16).padStart(2, '0')).join('');
+
+      const intent = {
+        student: DEMO_STUDENT.address,
+        slotId: activeSlotId,
+        linesHash: linesHash,
+        totalPaise: totalPaise,
+        nonce: nonce.toString(),
+        deadline: deadline
+      };
+
+      // Sign intent with session key
+      const domain = {
+        name: 'CanteenOrders',
+        version: '1',
+        chainId: configData.chainId,
+        verifyingContract: configData.contract
+      };
+      const structHash = hashOrderIntent({
+        ...intent,
+        nonce: nonce
+      });
+      const domainSep = computeDomainSeparator(domain);
+      const digest = Noble.keccak_256(concatBytes([
+        new Uint8Array([0x19, 0x01]),
+        domainSep,
+        structHash
+      ]));
+      const sigObj = Noble.secp256k1.sign(digest, sessionKeyAccount.privateKey.replace(/^0x/, ''));
+      const studentSig = formatSignature(sigObj);
+
+      // 1. Send intent to reserve capacity
+      msgEl.textContent = 'Reserving slot capacity...';
+      const intentRes = await fetch('/api/intents', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          intent,
+          lines,
+          studentSig
+        })
+      });
+
+      if (!intentRes.ok) {
+        const err = await intentRes.json();
+        msgEl.textContent = 'Failed: ' + (err.error || 'Capacity reservation error');
+        return;
+      }
+
+      const intentData = await intentRes.json();
+      msgEl.textContent = 'Paying with cINR demo vault...';
+
+      // 2. Pay via demo adapter
+      const payRes = await fetch('/api/demo/pay', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          chargeRef: intentData.chargeRef,
+          totalPaise: totalPaise
+        })
+      });
+
+      if (!payRes.ok) {
+        const err = await payRes.json();
+        msgEl.textContent = 'Payment error: ' + (err.error || 'Failed');
+        return;
+      }
+
+      const orderData = await payRes.json();
+      currentOrder = {
+        orderId: orderData.orderId,
+        tokenNo: orderData.tokenNo,
+        slotId: activeSlotId,
+        totalPaise: totalPaise,
+        txHash: orderData.txHash
+      };
+
+      cart = {};
+      msgEl.textContent = '';
+      showConfirmationScreen(currentOrder);
+    }
+
+    function showConfirmationScreen(order) {
+      const slot = configData.slots.find(s => s.id === order.slotId) || { label: '12:30' };
+      document.getElementById('conf-token').textContent = `${slot.label} · #${order.tokenNo || order.orderId}`;
+      document.getElementById('conf-slot-meta').textContent = `Pickup Window: ${slot.label} - Claim & Check In at counter`;
+      switchView('confirmation');
+    }
+
+    function openCheckInForCurrentOrder() {
+      switchView('checkin');
+    }
+
+    function viewTxOnExplorer() {
+      if (currentOrder && currentOrder.txHash) {
+        window.open(`https://testnet.monadvision.com/tx/${currentOrder.txHash}`, '_blank');
+      }
+    }
+
+    // --- Counter Check-In Flow (Spec 7.3) ---
+    async function activateCameraScanner() {
+      document.getElementById('scanner-placeholder').style.display = 'none';
+      const video = document.getElementById('scanner-video');
+      cameraStream = await QREngine.startScanner(video, (qrText) => {
+        handleScannedChallenge(qrText);
+      });
+    }
+
+    function processManualChallenge() {
+      const txt = document.getElementById('manual-challenge-input').value.trim();
+      if (!txt) return alert('Please enter challenge JSON');
+      handleScannedChallenge(txt);
+    }
+
+    async function handleScannedChallenge(challengeRaw) {
+      try {
+        const chal = typeof challengeRaw === 'string' ? JSON.parse(challengeRaw) : challengeRaw;
+        if (!chal.device || chal.slotId === undefined || !chal.nonce || !chal.timestamp) {
+          throw new Error('Invalid DeviceChallenge QR format.');
+        }
+
+        // Verify DeviceChallenge signature locally
+        const domain = {
+          name: 'CanteenOrders',
+          version: '1',
+          chainId: configData ? configData.chainId : 10143,
+          verifyingContract: configData ? configData.contract : '0x83edd38e28e43c608c0d30b60a03adac1eacbc33'
+        };
+
+        const CHAL_TYPEHASH = Noble.keccak_256(
+          new TextEncoder().encode("DeviceChallenge(address device,uint8 slotId,bytes32 nonce,uint48 timestamp)")
+        );
+        const challengeHash = Noble.keccak_256(concatBytes([
+          CHAL_TYPEHASH,
+          padAddress(chal.device),
+          padUint(chal.slotId),
+          hexToBytes(chal.nonce),
+          padUint(chal.timestamp)
+        ]));
+
+        const domainSep = computeDomainSeparator(domain);
+
+        // Student signs CheckIn(orderId, challengeHash) with local session key
+        const orderIdBig = BigInt(currentOrder ? currentOrder.orderId : 1);
+        const CHECKIN_TYPEHASH = Noble.keccak_256(
+          new TextEncoder().encode("CheckIn(uint256 orderId,bytes32 challengeHash)")
+        );
+        const checkInStructHash = Noble.keccak_256(concatBytes([
+          CHECKIN_TYPEHASH,
+          padUint256(orderIdBig),
+          challengeHash
+        ]));
+
+        const checkInDigest = Noble.keccak_256(concatBytes([
+          new Uint8Array([0x19, 0x01]),
+          domainSep,
+          checkInStructHash
+        ]));
+
+        const checkInSigObj = Noble.secp256k1.sign(checkInDigest, sessionKeyAccount.privateKey.replace(/^0x/, ''));
+        const studentSig = formatSignature(checkInSigObj);
+
+        // Response QR payload (Spec 7.3: {v:1, orderId, challenge, studentSig})
+        const responsePayload = {
+          v: 1,
+          orderId: orderIdBig.toString(),
+          challenge: chal,
+          deviceSig: chal.deviceSig,
+          studentSig: studentSig
+        };
+
+        lastSignedPayload = responsePayload;
+        localStorage.setItem('canteen_pending_checkin', JSON.stringify(responsePayload));
+
+        // Render Response QR
+        const svg = QREngine.renderSvg(JSON.stringify(responsePayload), {
+          size: 260,
+          dark: '#FFB38A',
+          light: '#1E1A18'
+        });
+        document.getElementById('response-qr-container').innerHTML = svg;
+        document.getElementById('response-qr-card').style.display = 'block';
+
+        if (cameraStream) {
+          cameraStream.stop();
+          cameraStream = null;
+        }
+      } catch (err) {
+        alert('Challenge parsing error: ' + err.message);
+      }
+    }
+
+    async function selfSubmitFallback() {
+      if (!lastSignedPayload) {
+        const stored = localStorage.getItem('canteen_pending_checkin');
+        if (stored) lastSignedPayload = JSON.parse(stored);
+      }
+      if (!lastSignedPayload) return alert('No pending check-in found.');
+
+      const btn = document.getElementById('btn-self-submit');
+      btn.textContent = 'Submitting to Monad...';
+
+      const res = await fetch('/api/orders/check-in', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(lastSignedPayload)
+      });
+
+      if (res.ok) {
+        const d = await res.json();
+        alert('Check-in confirmed on-chain! Tx: ' + d.txHash);
+        switchView('orders');
+      } else {
+        const err = await res.json();
+        alert('Self-submit failed: ' + (err.error || 'unknown'));
+      }
+      btn.textContent = 'Self-Submit Check-in Fallback';
+    }
+
+    // --- Orders List ---
+    async function loadMyOrders() {
+      const cont = document.getElementById('orders-list');
+      try {
+        const res = await fetch(`/api/orders?student=${DEMO_STUDENT.address}`);
+        const orders = await res.json();
+
+        if (orders.length === 0) {
+          cont.innerHTML = '<div style="text-align:center;color:var(--cream-dim);padding:24px;">No orders found yet.</div>';
+          return;
+        }
+
+        cont.innerHTML = orders.map(o => {
+          let statusBadge = `<span class="pill ok">${o.status}</span>`;
+          if (o.status === 'RefundOwed') statusBadge = `<span class="pill warn">Refund Owed (${o.refund_reason || ''})</span>`;
+          if (o.status === 'RefundPaid') statusBadge = `<span class="pill">Refund Paid</span>`;
+          if (o.status === 'Forfeited') statusBadge = `<span class="pill bad">Forfeited</span>`;
+
+          return `
+            <div class="order-ticket">
+              <div class="ticket-top">
+                <span class="ticket-token">Token #${o.token_no}</span>
+                ${statusBadge}
+              </div>
+              <div style="font-size:0.85rem;color:var(--cream-muted);">
+                Order ID: ${o.order_id} · Slot: ${o.slot_id} · Total: ₹${(o.total_paise / 100).toFixed(2)}
+              </div>
+              <div style="font-size:0.75rem;color:var(--cream-dim);font-family:var(--mono);">
+                Placed: ${new Date(o.placed_at).toLocaleTimeString()} · Tx: ${o.placed_tx.slice(0, 10)}...
+              </div>
+            </div>
+          `;
+        }).join('');
+      } catch (err) {
+        cont.innerHTML = '<div style="color:var(--bad);">Failed to load orders.</div>';
+      }
+    }
+
+    async function requestFaucet() {
+      try {
+        const res = await fetch('/api/demo/faucet', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ to: DEMO_STUDENT.address })
+        });
+        if (res.ok) alert('500 cINR demo tokens granted to your wallet!');
+      } catch (e) {
+        alert('Faucet failed');
+      }
+    }
+
+    // Init
+    window.addEventListener('load', () => {
+      initSessionKey();
+      loadConfig();
+    });
+  </script>
+</body>
+</html>
