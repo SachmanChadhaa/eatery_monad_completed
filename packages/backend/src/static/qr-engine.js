@@ -628,33 +628,87 @@
     </svg>`
   }
 
-  // --- Camera QR Scanner via BarcodeDetector API ---
-  async function startScanner(videoEl, onResult) {
-    if (!('BarcodeDetector' in window)) {
-      console.warn('BarcodeDetector not natively supported; manual paste fallback available.')
+  // --- Camera QR Scanner with Universal jsQR & BarcodeDetector support ---
+  async function startScanner(videoEl, onResult, onError) {
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+      const err = new Error('Camera API is not supported in this browser or requires HTTPS (or localhost).')
+      if (onError) onError(err)
       return null
     }
 
+    let stream = null
     try {
-      const detector = new window.BarcodeDetector({ formats: ['qr_code'] })
-      const stream = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: 'environment' },
+      stream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: { ideal: 'environment' }, width: { ideal: 1280 } }
       })
+    } catch (e1) {
+      try {
+        stream = await navigator.mediaDevices.getUserMedia({ video: true })
+      } catch (e2) {
+        let msg = e2.message || 'Camera permission denied or camera unavailable.'
+        if (e2.name === 'NotAllowedError' || e2.name === 'PermissionDeniedError') {
+          msg = 'Camera permission was denied. Please click the camera icon in your browser address bar to allow access.'
+        } else if (e2.name === 'NotFoundError' || e2.name === 'DevicesNotFoundError') {
+          msg = 'No camera found on this device.'
+        } else if (e2.name === 'NotReadableError' || e2.name === 'TrackStartError') {
+          msg = 'Camera is currently locked by another application or tab.'
+        }
+        const customErr = new Error(msg)
+        if (onError) onError(customErr)
+        return null
+      }
+    }
+
+    try {
       videoEl.srcObject = stream
+      videoEl.setAttribute('playsinline', 'true')
       await videoEl.play()
 
       let active = true
+      let hasNative = 'BarcodeDetector' in window
+      let detector = null
+      if (hasNative) {
+        try {
+          detector = new window.BarcodeDetector({ formats: ['qr_code'] })
+        } catch (_) {
+          hasNative = false
+        }
+      }
+
+      // Offscreen canvas for jsQR fallback
+      const canvas = document.createElement('canvas')
+      const ctx = canvas.getContext('2d', { willReadFrequently: true })
+
       const scan = async () => {
         if (!active) return
         try {
           if (videoEl.readyState >= 2) {
-            const codes = await detector.detect(videoEl)
-            if (codes && codes.length > 0) {
-              onResult(codes[0].rawValue)
+            if (hasNative && detector) {
+              const codes = await detector.detect(videoEl)
+              if (codes && codes.length > 0) {
+                onResult(codes[0].rawValue)
+                return
+              }
+            } else if (typeof window.jsQR === 'function') {
+              if (videoEl.videoWidth > 0 && videoEl.videoHeight > 0) {
+                canvas.width = videoEl.videoWidth
+                canvas.height = videoEl.videoHeight
+                if (ctx) {
+                  ctx.drawImage(videoEl, 0, 0, canvas.width, canvas.height)
+                  const imgData = ctx.getImageData(0, 0, canvas.width, canvas.height)
+                  const code = window.jsQR(imgData.data, imgData.width, imgData.height, {
+                    inversionAttempts: 'dontInvert'
+                  })
+                  if (code && code.data) {
+                    onResult(code.data)
+                    return
+                  }
+                }
+              }
             }
           }
         } catch (e) {
-          // Frame detection drop
+          // ignore detection frame drops
         }
         if (active) requestAnimationFrame(scan)
       }
@@ -664,10 +718,10 @@
         stop: () => {
           active = false
           stream.getTracks().forEach((t) => t.stop())
-        },
+        }
       }
     } catch (err) {
-      console.warn('Camera access denied or failed:', err)
+      if (onError) onError(err)
       return null
     }
   }

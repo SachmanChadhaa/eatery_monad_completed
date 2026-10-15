@@ -164,7 +164,7 @@
             <strong>Slots:</strong> ${cfg.slots.map(s => `${s.label} (${s.capacity} capacity, ${s.preorderCap} pre-order cap)`).join(' · ')}
           </div>
           <div style="background:var(--surface-elevated);padding:12px;border-radius:var(--radius-md);border:1px solid var(--line);">
-            <strong>Menu:</strong> ${cfg.items.map(it => `${it.name} (₹${(it.pricePaise / 100).toFixed(2)})`).join(' · ')}
+            <strong>Menu:</strong> ${cfg.items.map(it => `${it.name} (${(it.pricePaise / 100000).toFixed(3)} MON)`).join(' · ')}
           </div>
           <div style="color:var(--cream-dim);font-size:0.8rem;">
             Order Window: 07:00 - 09:00 IST · College Domain: ${cfg.collegeEmailDomain}

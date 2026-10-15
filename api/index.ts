@@ -59,6 +59,9 @@ export default async function handler(req: IncomingMessage, res: ServerResponse)
       if (p === '/noble-secp256k1.js') {
         if (serveFile(resolve(staticDir, 'noble-secp256k1.js'), 'application/javascript')) return
       }
+      if (p === '/jsqr.js') {
+        if (serveFile(resolve(staticDir, 'jsqr.js'), 'application/javascript')) return
+      }
       if (p === '/qr-engine.js') {
         if (serveFile(resolve(staticDir, 'qr-engine.js'), 'application/javascript')) return
       }

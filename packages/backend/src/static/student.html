@@ -8,6 +8,7 @@
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Newsreader:opsz,wght@6..72,500;6..72,600&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap">
   <link rel="stylesheet" href="/styles.css">
   <script src="/noble-secp256k1.js"></script>
+  <script src="/jsqr.js"></script>
   <script src="/qr-engine.js"></script>
 </head>
 <body>
@@ -17,11 +18,20 @@
       <h1 class="brand-title">CanteenPOS</h1>
       <span class="brand-badge">MONAD TESTNET</span>
     </div>
-    <div class="nav-links">
-      <button class="nav-btn active" id="tab-order" onclick="switchView('order')">Menu</button>
-      <button class="nav-btn" id="tab-checkin" onclick="switchView('checkin')">Check-in</button>
-      <button class="nav-btn" id="tab-orders" onclick="switchView('orders')">Orders</button>
-      <button class="nav-btn" id="tab-settings" onclick="switchView('settings')">Settings</button>
+    <div style="display:flex;align-items:center;gap:12px;">
+      <button id="btn-metamask" onclick="connectMetaMask()" style="display:inline-flex;align-items:center;gap:6px;background:var(--crail);color:var(--cream);border-radius:20px;padding:6px 14px;font-size:0.82rem;font-weight:600;border:none;cursor:pointer;">
+        <span>🦊</span> Connect MetaMask
+      </button>
+      <div id="wallet-pill" style="display:none;align-items:center;gap:8px;background:var(--surface);border:1px solid var(--peach);border-radius:20px;padding:4px 12px;font-family:var(--mono);font-size:0.78rem;">
+        <span id="wallet-mon-bal" style="color:var(--peach);font-weight:700;">0.00 MON</span>
+        <span id="wallet-address-pill" style="color:var(--cream-dim);">0x...</span>
+      </div>
+      <div class="nav-links">
+        <button class="nav-btn active" id="tab-order" onclick="switchView('order')">Menu</button>
+        <button class="nav-btn" id="tab-checkin" onclick="switchView('checkin')">Check-in</button>
+        <button class="nav-btn" id="tab-orders" onclick="switchView('orders')">Orders</button>
+        <button class="nav-btn" id="tab-settings" onclick="switchView('settings')">Settings</button>
+      </div>
     </div>
   </header>
 
@@ -29,9 +39,9 @@
     <!-- Network & Session Status Strip -->
     <div class="strip">
       <span class="pill ok" id="net-pill">Online</span>
-      <span class="pill" id="session-pill">Session: Initializing...</span>
-      <span class="pill live" id="token-balance-pill">cINR: 500.00</span>
-      <button class="quiet" style="padding:4px 10px;font-size:0.75rem;" onclick="requestFaucet()">+ Faucet</button>
+      <span class="pill" id="session-pill">Session: Active</span>
+      <span class="pill live" id="token-balance-pill">Wallet: Not Connected</span>
+      <button class="quiet" style="padding:4px 10px;font-size:0.75rem;" onclick="requestFaucet()">+ MON Faucet</button>
     </div>
 
     <!-- VIEW 1: Order & Menu -->
@@ -42,6 +52,15 @@
           <div class="card-subtitle">Select slot & cart. 30% capacity cap strictly enforced on-chain.</div>
         </div>
         <span class="pill" id="window-status-pill">07:00 - 08:58 IST</span>
+      </div>
+
+      <!-- Compulsory MetaMask Banner -->
+      <div id="metamask-required-card" style="border:1px dashed var(--peach);background:rgba(255, 179, 138, 0.08);border-radius:var(--radius-md);padding:14px 18px;margin-bottom:14px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;">
+        <div>
+          <div style="font-weight:600;color:var(--peach);font-size:0.95rem;display:flex;align-items:center;gap:6px;">🦊 MetaMask Wallet Required</div>
+          <div style="font-size:0.8rem;color:var(--cream-muted);margin-top:2px;">Connect your MetaMask wallet on Monad Testnet to place pre-orders with testnet MON.</div>
+        </div>
+        <button type="button" onclick="connectMetaMask()" style="padding:8px 16px;font-size:0.85rem;background:var(--crail);border-radius:var(--radius-sm);cursor:pointer;">Connect Wallet</button>
       </div>
 
       <!-- Slots Picker -->
@@ -64,7 +83,7 @@
       <div style="background:var(--surface-elevated);border:1px solid var(--line);border-radius:var(--radius-md);padding:16px;display:grid;gap:12px;">
         <div style="display:flex;justify-content:space-between;align-items:center;">
           <span style="color:var(--cream-muted);">Pre-Order Total:</span>
-          <span style="font-family:var(--mono);font-size:1.3rem;font-weight:700;color:var(--peach);" id="cart-total">₹0.00</span>
+          <span style="font-family:var(--mono);font-size:1.3rem;font-weight:700;color:var(--peach);" id="cart-total">0.000 MON</span>
         </div>
         <button id="btn-submit-order" onclick="submitPreOrder()">Sign & Pay Pre-Order</button>
         <div id="order-msg" style="font-size:0.85rem;color:var(--peach);text-align:center;"></div>
@@ -189,12 +208,186 @@
     let lastSignedPayload = null;
     let cameraStream = null;
 
-    // Student & Session Keys (Simulated Privy embedded wallet + session key)
+    // Student & Session Keys
+    let connectedStudentAddress = null;
+    let connectedMonBalance = '0.00';
     const DEMO_STUDENT = {
       address: '0x0A2c1e725446102f33930D2E2d761B203Fe062D4',
       privateKey: '0x0a2c1e725446102f33930d2e2d761b203fe062d486702f662ed3b2ec76e7958b'
     };
     let sessionKeyAccount = null;
+
+    async function connectMetaMask() {
+      if (typeof window.ethereum === 'undefined') {
+        alert('MetaMask is not detected. Please install the MetaMask browser extension from https://metamask.io');
+        window.open('https://metamask.io', '_blank');
+        return false;
+      }
+
+      try {
+        const accounts = await window.ethereum.request({ method: 'eth_requestAccounts' });
+        if (!accounts || accounts.length === 0) {
+          alert('No accounts found in MetaMask.');
+          return false;
+        }
+
+        connectedStudentAddress = accounts[0].toLowerCase();
+
+        // Check and switch network to Monad Testnet (10143 / 0x279f)
+        const chainId = await window.ethereum.request({ method: 'eth_chainId' });
+        if (chainId !== '0x279f') {
+          try {
+            await window.ethereum.request({
+              method: 'wallet_switchEthereumChain',
+              params: [{ chainId: '0x279f' }]
+            });
+          } catch (switchError) {
+            if (switchError.code === 4902 || switchError.data?.originalError?.code === 4902) {
+              await window.ethereum.request({
+                method: 'wallet_addEthereumChain',
+                params: [{
+                  chainId: '0x279f',
+                  chainName: 'Monad Testnet',
+                  nativeCurrency: { name: 'MON', symbol: 'MON', decimals: 18 },
+                  rpcUrls: ['https://testnet-rpc.monad.xyz'],
+                  blockExplorerUrls: ['https://testnet.monadvision.com']
+                }]
+              });
+            } else {
+              console.warn('Network switch warning:', switchError);
+            }
+          }
+        }
+
+        await refreshMonBalance();
+        updateWalletUI();
+        await checkAndRegisterSessionKey(connectedStudentAddress);
+        return true;
+      } catch (err) {
+        console.error('MetaMask connection error:', err);
+        alert('Could not connect MetaMask: ' + (err.message || 'User rejected connection'));
+        return false;
+      }
+    }
+
+    async function refreshMonBalance() {
+      if (!connectedStudentAddress || !window.ethereum) return;
+      try {
+        const balHex = await window.ethereum.request({
+          method: 'eth_getBalance',
+          params: [connectedStudentAddress, 'latest']
+        });
+        const balNum = parseInt(balHex, 16) / 1e18;
+        connectedMonBalance = balNum.toFixed(4);
+      } catch (e) {
+        console.warn('Balance fetch failed:', e);
+      }
+    }
+
+    function updateWalletUI() {
+      const btn = document.getElementById('btn-metamask');
+      const pill = document.getElementById('wallet-pill');
+      const alertCard = document.getElementById('metamask-required-card');
+      const balPill = document.getElementById('token-balance-pill');
+      const studentAddrInput = document.getElementById('setting-student-addr');
+
+      if (connectedStudentAddress) {
+        if (btn) btn.style.display = 'none';
+        if (pill) {
+          pill.style.display = 'flex';
+          document.getElementById('wallet-mon-bal').textContent = `${connectedMonBalance} MON`;
+          document.getElementById('wallet-address-pill').textContent = `${connectedStudentAddress.slice(0, 6)}...${connectedStudentAddress.slice(-4)}`;
+        }
+        if (alertCard) alertCard.style.display = 'none';
+        if (balPill) balPill.textContent = `${connectedMonBalance} MON`;
+        if (studentAddrInput) studentAddrInput.value = connectedStudentAddress;
+      } else {
+        if (btn) btn.style.display = 'inline-flex';
+        if (pill) pill.style.display = 'none';
+        if (alertCard) alertCard.style.display = 'flex';
+        if (balPill) balPill.textContent = `Wallet: Not Connected`;
+      }
+    }
+
+    async function checkAndRegisterSessionKey(studentAddr) {
+      if (!sessionKeyAccount) return;
+      const registeredKey = localStorage.getItem('canteen_registered_student_' + studentAddr);
+      if (registeredKey && registeredKey.toLowerCase() === sessionKeyAccount.address.toLowerCase()) {
+        return;
+      }
+
+      try {
+        const now = Math.floor(Date.now() / 1000);
+        const expiry = now + 30 * 86400;
+        const nonce = 0n;
+
+        const domain = {
+          name: 'CanteenOrders',
+          version: '1',
+          chainId: configData ? configData.chainId : 10143,
+          verifyingContract: configData ? configData.contract : '0x83edd38e28e43c608c0d30b60a03adac1eacbc33'
+        };
+
+        const message = {
+          student: studentAddr,
+          key: sessionKeyAccount.address,
+          expiry: expiry,
+          nonce: nonce.toString()
+        };
+
+        const typedData = JSON.stringify({
+          types: {
+            EIP712Domain: [
+              { name: 'name', type: 'string' },
+              { name: 'version', type: 'string' },
+              { name: 'chainId', type: 'uint256' },
+              { name: 'verifyingContract', type: 'address' }
+            ],
+            SessionKeyAuth: canteenTypes.SessionKeyAuth
+          },
+          primaryType: 'SessionKeyAuth',
+          domain: domain,
+          message: message
+        });
+
+        const sig = await window.ethereum.request({
+          method: 'eth_signTypedData_v4',
+          params: [studentAddr, typedData]
+        });
+
+        await fetch('/api/session-key/register', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            student: studentAddr,
+            key: sessionKeyAccount.address,
+            expiry,
+            nonce: '0',
+            sig
+          })
+        });
+
+        localStorage.setItem('canteen_registered_student_' + studentAddr, sessionKeyAccount.address);
+      } catch (err) {
+        console.warn('Session key auth note:', err);
+      }
+    }
+
+    async function requestFaucet() {
+      if (!connectedStudentAddress) {
+        const ok = await connectMetaMask();
+        if (!ok || !connectedStudentAddress) return;
+      }
+      try {
+        await fetch('/api/demo/faucet', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ to: connectedStudentAddress })
+        });
+      } catch (_) {}
+      window.open('https://testnet.monad.xyz', '_blank');
+      setTimeout(refreshMonBalance, 3000);
+    }
 
     // EIP-712 Domain & Types
     const canteenTypes = {
@@ -238,6 +431,11 @@
       if (viewName !== 'checkin' && cameraStream) {
         cameraStream.stop();
         cameraStream = null;
+        const placeholder = document.getElementById('scanner-placeholder');
+        if (placeholder) {
+          placeholder.innerHTML = 'Camera scanner inactive.<br><button style="margin-top:10px;" onclick="activateCameraScanner()">Start Camera Scan</button>';
+          placeholder.style.display = 'block';
+        }
       }
     }
 
@@ -266,11 +464,19 @@
     }
 
     async function reauthorizeSessionKey() {
+      if (!connectedStudentAddress) {
+        const ok = await connectMetaMask();
+        if (!ok || !connectedStudentAddress) {
+          alert('Please connect MetaMask first.');
+          return;
+        }
+      }
+
+      const studentAddr = connectedStudentAddress;
       const now = Math.floor(Date.now() / 1000);
       const expiry = now + 30 * 86400;
       const nonce = 0n;
 
-      // Student signs SessionKeyAuth(student, key, expiry, nonce)
       const domain = {
         name: 'CanteenOrders',
         version: '1',
@@ -278,31 +484,53 @@
         verifyingContract: configData ? configData.contract : '0x83edd38e28e43c608c0d30b60a03adac1eacbc33'
       };
 
-      // Hash typed data
-      const sig = signSessionKeyAuth(DEMO_STUDENT.privateKey, domain, {
-        student: DEMO_STUDENT.address,
-        key: sessionKeyAccount.address,
-        expiry: expiry,
-        nonce: nonce
-      });
+      try {
+        const typedData = JSON.stringify({
+          types: {
+            EIP712Domain: [
+              { name: 'name', type: 'string' },
+              { name: 'version', type: 'string' },
+              { name: 'chainId', type: 'uint256' },
+              { name: 'verifyingContract', type: 'address' }
+            ],
+            SessionKeyAuth: canteenTypes.SessionKeyAuth
+          },
+          primaryType: 'SessionKeyAuth',
+          domain: domain,
+          message: {
+            student: studentAddr,
+            key: sessionKeyAccount.address,
+            expiry: expiry,
+            nonce: nonce.toString()
+          }
+        });
 
-      const res = await fetch('/api/session-key/register', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          student: DEMO_STUDENT.address,
-          key: sessionKeyAccount.address,
-          expiry: expiry,
-          nonce: nonce.toString(),
-          sig: sig
-        })
-      });
+        const sig = await window.ethereum.request({
+          method: 'eth_signTypedData_v4',
+          params: [studentAddr, typedData]
+        });
 
-      if (res.ok) {
-        alert('Session key registered successfully on Monad!');
-      } else {
-        const err = await res.json();
-        alert('Registration failed: ' + (err.error || 'unknown'));
+        const res = await fetch('/api/session-key/register', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            student: studentAddr,
+            key: sessionKeyAccount.address,
+            expiry: expiry,
+            nonce: nonce.toString(),
+            sig: sig
+          })
+        });
+
+        if (res.ok) {
+          localStorage.setItem('canteen_registered_student_' + studentAddr, sessionKeyAccount.address);
+          alert('Session key registered successfully on Monad Testnet for ' + studentAddr.slice(0, 8) + '...!');
+        } else {
+          const err = await res.json();
+          alert('Registration failed: ' + (err.error || 'unknown'));
+        }
+      } catch (err) {
+        alert('Signature canceled or failed: ' + (err.message || 'unknown'));
       }
     }
 
@@ -432,7 +660,7 @@
             <div class="item-row" style="${it.available ? '' : 'opacity:0.5;'}">
               <div class="item-info">
                 <div class="item-name">${it.name} ${it.available ? '' : '<span style="color:var(--bad);font-size:0.75rem;">(Sold Out)</span>'}</div>
-                <div class="item-price">₹${(it.pricePaise / 100).toFixed(2)}</div>
+                <div class="item-price">${formatMon(it.pricePaise)}</div>
               </div>
               <div class="stepper">
                 <button class="stepper-btn" onclick="updateQty(${it.id}, -1)" ${it.available ? '' : 'disabled'}>-</button>
@@ -447,6 +675,10 @@
       } catch (err) {
         console.error('Config fetch failed:', err);
       }
+    }
+
+    function formatMon(paise) {
+      return (paise / 100000).toFixed(3) + ' MON';
     }
 
     function selectSlot(id) {
@@ -472,13 +704,25 @@
           if (item) totalPaise += item.pricePaise * qty;
         }
       }
-      document.getElementById('cart-total').textContent = '₹' + (totalPaise / 100).toFixed(2);
+      document.getElementById('cart-total').textContent = formatMon(totalPaise);
       return totalPaise;
     }
 
     // --- Order Placement ---
     async function submitPreOrder() {
       const msgEl = document.getElementById('order-msg');
+
+      // Compulsory MetaMask check
+      if (!connectedStudentAddress) {
+        msgEl.textContent = '🦊 Connecting MetaMask (Compulsory)...';
+        const connected = await connectMetaMask();
+        if (!connected || !connectedStudentAddress) {
+          msgEl.textContent = '⚠️ MetaMask connection is compulsory for all students.';
+          alert('MetaMask connection is compulsory. Please connect your MetaMask wallet on Monad Testnet to place pre-orders.');
+          return;
+        }
+      }
+
       msgEl.textContent = 'Preparing order...';
 
       const lineEntries = Object.entries(cart);
@@ -498,20 +742,17 @@
       const nonce = BigInt(Date.now());
 
       // Compute linesHash
-      // linesHash = keccak256(abi.encode(Line[] lines))
-      // In SDK: hashLines(lines)
       const encodedLines = [];
       for (const l of lines) {
         encodedLines.push(padUint(l.itemId));
         encodedLines.push(padUint(l.qty));
         encodedLines.push(padUint(l.unitPricePaise));
       }
-      // Compact Line[] keccak
       const linesBytes = concatBytes(encodedLines);
       const linesHash = '0x' + Array.from(Noble.keccak_256(linesBytes)).map(b => b.toString(16).padStart(2, '0')).join('');
 
       const intent = {
-        student: DEMO_STUDENT.address,
+        student: connectedStudentAddress,
         slotId: activeSlotId,
         linesHash: linesHash,
         totalPaise: totalPaise,
@@ -540,7 +781,7 @@
       const studentSig = formatSignature(sigObj);
 
       // 1. Send intent to reserve capacity
-      msgEl.textContent = 'Reserving slot capacity...';
+      msgEl.textContent = 'Reserving slot capacity on Monad...';
       const intentRes = await fetch('/api/intents', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -558,15 +799,16 @@
       }
 
       const intentData = await intentRes.json();
-      msgEl.textContent = 'Paying with cINR demo vault...';
+      msgEl.textContent = 'Paying with Monad Testnet MON...';
 
-      // 2. Pay via demo adapter
+      // 2. Pay via adapter
       const payRes = await fetch('/api/demo/pay', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           chargeRef: intentData.chargeRef,
-          totalPaise: totalPaise
+          totalPaise: totalPaise,
+          student: connectedStudentAddress
         })
       });
 
@@ -587,6 +829,7 @@
 
       cart = {};
       msgEl.textContent = '';
+      refreshMonBalance();
       showConfirmationScreen(currentOrder);
     }
 
@@ -609,11 +852,28 @@
 
     // --- Counter Check-In Flow (Spec 7.3) ---
     async function activateCameraScanner() {
-      document.getElementById('scanner-placeholder').style.display = 'none';
+      const placeholder = document.getElementById('scanner-placeholder');
+      placeholder.innerHTML = 'Requesting camera permissions...<br><span style="font-size:0.75rem;color:var(--cream-dim);">Please click Allow in your browser popup</span>';
+      placeholder.style.display = 'block';
       const video = document.getElementById('scanner-video');
-      cameraStream = await QREngine.startScanner(video, (qrText) => {
-        handleScannedChallenge(qrText);
-      });
+
+      cameraStream = await QREngine.startScanner(
+        video,
+        (qrText) => {
+          handleScannedChallenge(qrText);
+        },
+        (err) => {
+          placeholder.innerHTML = `
+            <div style="color:var(--bad);font-weight:600;margin-bottom:6px;">⚠️ Camera Access Error</div>
+            <div style="font-size:0.8rem;color:var(--cream-dim);max-width:280px;margin:0 auto 10px auto;">${err.message}</div>
+            <button onclick="activateCameraScanner()" style="padding:6px 14px;font-size:0.8rem;">Try Again</button>
+          `;
+          placeholder.style.display = 'block';
+        }
+      );
+      if (cameraStream) {
+        placeholder.style.display = 'none';
+      }
     }
 
     function processManualChallenge() {
@@ -757,8 +1017,9 @@
     // --- Orders List ---
     async function loadMyOrders() {
       const cont = document.getElementById('orders-list');
+      const student = connectedStudentAddress || DEMO_STUDENT.address;
       try {
-        const res = await fetch(`/api/orders?student=${DEMO_STUDENT.address}`);
+        const res = await fetch(`/api/orders?student=${student}`);
         const orders = await res.json();
 
         if (orders.length === 0) {
@@ -779,7 +1040,7 @@
                 ${statusBadge}
               </div>
               <div style="font-size:0.85rem;color:var(--cream-muted);">
-                Order ID: ${o.order_id} · Slot: ${o.slot_id} · Total: ₹${(o.total_paise / 100).toFixed(2)}
+                Order ID: ${o.order_id} · Slot: ${o.slot_id} · Total: ${formatMon(o.total_paise)}
               </div>
               <div style="font-size:0.75rem;color:var(--cream-dim);font-family:var(--mono);">
                 Placed: ${new Date(o.placed_at).toLocaleTimeString()} · Tx: ${o.placed_tx.slice(0, 10)}...
@@ -792,23 +1053,42 @@
       }
     }
 
-    async function requestFaucet() {
-      try {
-        const res = await fetch('/api/demo/faucet', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ to: DEMO_STUDENT.address })
-        });
-        if (res.ok) alert('500 cINR demo tokens granted to your wallet!');
-      } catch (e) {
-        alert('Faucet failed');
-      }
-    }
-
-    // Init
-    window.addEventListener('load', () => {
+    // Init & Auto-connect
+    window.addEventListener('load', async () => {
       initSessionKey();
       loadConfig();
+
+      if (typeof window.ethereum !== 'undefined') {
+        try {
+          const accounts = await window.ethereum.request({ method: 'eth_accounts' });
+          if (accounts && accounts.length > 0) {
+            connectedStudentAddress = accounts[0].toLowerCase();
+            await refreshMonBalance();
+            updateWalletUI();
+            checkAndRegisterSessionKey(connectedStudentAddress);
+          }
+        } catch (e) {
+          console.warn('Auto-connect check failed:', e);
+        }
+
+        window.ethereum.on('accountsChanged', async (accounts) => {
+          if (accounts && accounts.length > 0) {
+            connectedStudentAddress = accounts[0].toLowerCase();
+            await refreshMonBalance();
+            updateWalletUI();
+            await checkAndRegisterSessionKey(connectedStudentAddress);
+            loadMyOrders();
+          } else {
+            connectedStudentAddress = null;
+            connectedMonBalance = '0.00';
+            updateWalletUI();
+          }
+        });
+
+        window.ethereum.on('chainChanged', () => {
+          window.location.reload();
+        });
+      }
     });
   </script>
 </body>

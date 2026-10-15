@@ -42,6 +42,7 @@ async function main() {
   const stylesCss = readStatic('styles.css') ?? ''
   const qrEngineJs = readStatic('qr-engine.js') ?? ''
   const nobleJs = readStatic('noble-secp256k1.js') ?? ''
+  const jsqrJs = readStatic('jsqr.js') ?? ''
 
   const offlineCheckPath = resolve(repoRoot, 'tools/v2-offline-signing/offline-signing-check.html')
   const offlineCheckHtml = existsSync(offlineCheckPath) ? readFileSync(offlineCheckPath, 'utf8') : ''
@@ -92,6 +93,11 @@ async function main() {
         if (p === '/noble-secp256k1.js') {
           res.writeHead(200, { 'Content-Type': 'application/javascript' })
           res.end(nobleJs)
+          return
+        }
+        if (p === '/jsqr.js') {
+          res.writeHead(200, { 'Content-Type': 'application/javascript' })
+          res.end(jsqrJs)
           return
         }
       }

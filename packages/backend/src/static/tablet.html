@@ -8,6 +8,7 @@
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Newsreader:opsz,wght@6..72,500;6..72,600&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap">
   <link rel="stylesheet" href="/styles.css">
   <script src="/noble-secp256k1.js"></script>
+  <script src="/jsqr.js"></script>
   <script src="/qr-engine.js"></script>
 </head>
 <body>
@@ -276,11 +277,27 @@
 
     // --- Tablet Camera Scanner ---
     async function startTabletScanner() {
-      document.getElementById('tablet-scanner-placeholder').style.display = 'none';
+      const placeholder = document.getElementById('tablet-scanner-placeholder');
+      placeholder.innerHTML = 'Requesting camera permissions...<br><span style="font-size:0.75rem;color:var(--cream-dim);">Please click Allow in your browser popup</span>';
+      placeholder.style.display = 'block';
       const video = document.getElementById('tablet-scanner-video');
-      cameraStream = await QREngine.startScanner(video, (qrText) => {
-        processResponseQR(qrText);
-      });
+      cameraStream = await QREngine.startScanner(
+        video,
+        (qrText) => {
+          processResponseQR(qrText);
+        },
+        (err) => {
+          placeholder.innerHTML = `
+            <div style="color:var(--bad);font-weight:600;margin-bottom:6px;">⚠️ Camera Access Error</div>
+            <div style="font-size:0.8rem;color:var(--cream-dim);max-width:280px;margin:0 auto 10px auto;">${err.message}</div>
+            <button onclick="startTabletScanner()" style="padding:6px 14px;font-size:0.8rem;">Try Again</button>
+          `;
+          placeholder.style.display = 'block';
+        }
+      );
+      if (cameraStream) {
+        placeholder.style.display = 'none';
+      }
     }
 
     function submitManualResponse() {
@@ -443,7 +460,7 @@
         <div class="item-row" style="background:var(--surface);">
           <div class="item-info">
             <span class="item-name">${it.name}</span>
-            <span class="item-price">₹${(it.pricePaise / 100).toFixed(2)}</span>
+            <span class="item-price">${(it.pricePaise / 100000).toFixed(3)} MON</span>
           </div>
           <div>
             <button class="${it.available ? 'secondary' : ''}" style="${it.available ? '' : 'background:var(--bad);'}" onclick="toggleAvailability(${it.id}, ${!it.available})">
