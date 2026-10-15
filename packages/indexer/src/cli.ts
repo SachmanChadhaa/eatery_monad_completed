@@ -12,7 +12,7 @@ import { resolve } from 'node:path'
 import { createPublicClient, http } from 'viem'
 import { foundry } from 'viem/chains'
 import { dayId, monadTestnet } from '@canteenpos/sdk'
-import { migrate, openDb } from './db.ts'
+import { type Db, migrate, openDb } from './db.ts'
 import { Indexer } from './indexer.ts'
 
 const repoRoot = resolve(import.meta.dirname, '../../..')

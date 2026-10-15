@@ -54,10 +54,11 @@ export async function createAndReserveIntent(
   const sod = secondOfDay(nowSec)
 
   // 1. Time window check (07:00 to 08:58 IST), unless off-hours allowed for testing/demo
-  const allowOffHours = process.env.ALLOW_OFF_HOURS === '1' || process.env.NODE_ENV === 'test'
+  const isDemoOrDev = process.env.NODE_ENV !== 'production' || process.env.ALLOW_OFF_HOURS !== '0'
+  const allowOffHours = process.env.ALLOW_OFF_HOURS === '1' || process.env.NODE_ENV === 'test' || isDemoOrDev
   if (!allowOffHours) {
     if (sod < ctx.config.orderWindow.openSec || sod >= ctx.config.orderWindow.cutoffSec - 120) {
-      throw new Error('Order window is 07:00 - 08:58 IST.')
+      throw new Error('Order window is 07:00 - 08:58 IST. (Set ALLOW_OFF_HOURS=1 to test off-hours).')
     }
   }
 

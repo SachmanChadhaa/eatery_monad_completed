@@ -114,12 +114,15 @@
         </div>
       </div>
 
-      <!-- Fallback manual challenge paste for quick demo / desktop testing -->
-      <details style="font-size:0.82rem;color:var(--cream-dim);">
-        <summary style="cursor:pointer;">Or Paste Challenge JSON manually</summary>
+      <!-- Fallback manual challenge paste / 1-click test for desktop testing -->
+      <details style="font-size:0.82rem;color:var(--cream-dim);" open>
+        <summary style="cursor:pointer;font-weight:600;color:var(--peach);">Or Paste Challenge JSON / Use Live Counter Challenge</summary>
         <div style="display:grid;gap:8px;margin-top:8px;">
-          <textarea id="manual-challenge-input" rows="3" placeholder='{"v":1,"device":"0x...","slotId":0,"nonce":"0x...","timestamp":...}' style="width:100%;background:var(--surface-elevated);color:var(--cream);border:1px solid var(--line);border-radius:var(--radius-sm);padding:8px;font-family:var(--mono);font-size:0.75rem;"></textarea>
-          <button class="secondary" onclick="processManualChallenge()">Sign Pasted Challenge</button>
+          <textarea id="manual-challenge-input" rows="3" placeholder='Paste full Challenge JSON here: {"v":1,"device":"0x...","slotId":0,"nonce":"0x...","timestamp":...,"deviceSig":"..."}' style="width:100%;background:var(--surface-elevated);color:var(--cream);border:1px solid var(--line);border-radius:var(--radius-sm);padding:8px;font-family:var(--mono);font-size:0.75rem;"></textarea>
+          <div style="display:flex;gap:8px;">
+            <button class="secondary" style="flex:1;" onclick="processManualChallenge()">Sign Pasted Challenge</button>
+            <button type="button" class="quiet" style="flex:1;border:1px solid var(--line);" onclick="fetchLiveCounterChallenge()">⚡ Use Live Tablet Challenge</button>
+          </div>
         </div>
       </details>
 
@@ -615,8 +618,35 @@
 
     function processManualChallenge() {
       const txt = document.getElementById('manual-challenge-input').value.trim();
-      if (!txt) return alert('Please enter challenge JSON');
+      if (!txt) return alert('Please enter the Challenge JSON from the counter tablet, or click "⚡ Use Live Tablet Challenge".');
+      
+      // If user pasted an Ethereum address or hex hash
+      if (txt.startsWith('0x') && txt.length < 100) {
+        alert(`You entered an address/hash (${txt.slice(0, 12)}...).\n\nCounter check-in requires the complete Tablet Challenge JSON object (containing device, slotId, nonce, timestamp, and deviceSig).\n\n💡 Tip: Click the "⚡ Use Live Tablet Challenge" button to test instantly, or on the Tablet KDS page (/tablet) click "Copy Challenge Payload"!`);
+        return;
+      }
       handleScannedChallenge(txt);
+    }
+
+    async function fetchLiveCounterChallenge() {
+      try {
+        const res = await fetch('/api/devices/challenge');
+        if (res.ok) {
+          const chal = await res.json();
+          document.getElementById('manual-challenge-input').value = JSON.stringify(chal, null, 2);
+          handleScannedChallenge(chal);
+          return;
+        }
+      } catch (_) {}
+
+      // Fallback: check localStorage from active tablet tab
+      const local = localStorage.getItem('canteenpos_latest_tablet_challenge');
+      if (local) {
+        document.getElementById('manual-challenge-input').value = local;
+        handleScannedChallenge(JSON.parse(local));
+      } else {
+        alert('Could not fetch active challenge. Please open /tablet in another tab or paste the challenge JSON from the tablet.');
+      }
     }
 
     async function handleScannedChallenge(challengeRaw) {

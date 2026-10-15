@@ -45,6 +45,10 @@
         <div style="font-family:var(--mono);font-size:0.75rem;color:var(--cream-dim);max-width:320px;word-break:break-all;" id="chal-details">
           Generating challenge...
         </div>
+
+        <button type="button" class="secondary" onclick="copyChallengeJson()" style="margin-top:10px;padding:6px 14px;font-size:0.8rem;">
+          📋 Copy Challenge Payload
+        </button>
       </div>
 
       <!-- Scanner Box -->
@@ -233,6 +237,9 @@
       };
 
       currentChallenge = challengePayload;
+      try {
+        localStorage.setItem('canteenpos_latest_tablet_challenge', JSON.stringify(challengePayload));
+      } catch (_) {}
 
       // Render challenge QR
       const svg = QREngine.renderSvg(JSON.stringify(challengePayload), {
@@ -242,6 +249,16 @@
       });
       document.getElementById('challenge-qr-container').innerHTML = svg;
       document.getElementById('chal-details').textContent = `Device: ${TABLET_DEVICE.address.slice(0, 10)}... · TS: ${now}`;
+    }
+
+    function copyChallengeJson() {
+      if (!currentChallenge) return alert('Challenge not ready yet.');
+      const jsonStr = JSON.stringify(currentChallenge);
+      navigator.clipboard.writeText(jsonStr).then(() => {
+        alert('Challenge JSON copied to clipboard!\n\nNow open Student PWA -> Check-in tab -> paste into "Or Paste Challenge JSON manually", or click "Use Live Tablet Challenge"!');
+      }).catch(() => {
+        prompt('Copy this challenge payload:', jsonStr);
+      });
     }
 
     function startChallengeRotation() {
