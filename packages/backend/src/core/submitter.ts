@@ -148,8 +148,8 @@ export async function processPaidIntent(
 
       await ctx.db.transaction(async (tx) => {
         await tx.query(
-          `insert into orders (order_id, student, day_id, slot_id, token_no, status, placed_at, claim_start, total_paise, payment_ref, tx_hash, block_number, intent_hash)
-           values ($1, $2, $3, $4, $5, 'Placed', to_timestamp($6), to_timestamp($7), $8, $9, $10, 0, $11)`,
+          `insert into orders (order_id, student, day_id, slot_id, token_no, status, placed_at, claim_start, total_paise, payment_ref, placed_tx, last_event_block, last_event_log, intent_hash)
+           values ($1, $2, $3, $4, $5, 'Placed', to_timestamp($6), to_timestamp($7), $8, $9, $10, 0, 0, $11)`,
           [
             simulatedOrderId,
             intent.student.toLowerCase(),
@@ -160,7 +160,7 @@ export async function processPaidIntent(
             nowSec,
             intent.totalPaise,
             paymentRef,
-            simulatedTx,
+            (explicitPaymentRef as Hex) ?? simulatedTx,
             row.intent_hash,
           ],
         )
