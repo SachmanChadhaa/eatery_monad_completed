@@ -1029,44 +1029,55 @@
       if (!container) return;
       container.innerHTML = '<div style="color:var(--cream-dim);padding:20px;font-size:0.85rem;">Generating Canteen Counter QR...</div>';
 
+      let chal = null;
       try {
         const res = await fetch('/api/devices/challenge');
         if (res.ok) {
-          activeCounterChallenge = await res.json();
-          const svg = QREngine.renderSvg(JSON.stringify(activeCounterChallenge), {
-            size: 210,
-            dark: '#F5E6D3',
-            light: '#1E1A18'
-          });
-          container.innerHTML = svg;
-          const meta = document.getElementById('counter-qr-meta');
-          if (meta) {
-            meta.textContent = `${activeCounterChallenge.counter || 'Counter #1'} · ${activeCounterChallenge.table || 'Table #4'}`;
-          }
-          return;
+          chal = await res.json();
         }
       } catch (e) {
         console.warn('Live counter challenge fetch note:', e);
       }
 
-      // Offline fallback challenge signed by DEMO_DEVICE_PK
-      const now = Math.floor(Date.now() / 1000);
-      activeCounterChallenge = {
-        v: 1,
-        device: '0x6a09e37b7b8c2247f93f6363d7eb595c4024b408',
-        slotId: 0,
-        nonce: '0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef',
-        timestamp: now,
-        counter: 'Pickup Counter #1',
-        table: 'Table #4 (Zone A)',
-        deviceSig: '0x35661b6ec260dfc9497e69f835cbfe170bc0632599c9d5e305e94b2abceca4f10356c38b29ff63b519e4963503aa30953ee2c6bb75c589eef39281518f8fa7e41c'
-      };
-      const svg = QREngine.renderSvg(JSON.stringify(activeCounterChallenge), {
-        size: 210,
-        dark: '#F5E6D3',
-        light: '#1E1A18'
-      });
-      container.innerHTML = svg;
+      if (!chal) {
+        // Offline fallback challenge signed by DEMO_DEVICE_PK
+        const now = Math.floor(Date.now() / 1000);
+        chal = {
+          v: 1,
+          device: '0x6a09e37b7b8c2247f93f6363d7eb595c4024b408',
+          slotId: 0,
+          nonce: '0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef',
+          timestamp: now,
+          counter: 'Pickup Counter #1',
+          table: 'Table #4 (Zone A)',
+          deviceSig: '0x35661b6ec260dfc9497e69f835cbfe170bc0632599c9d5e305e94b2abceca4f10356c38b29ff63b519e4963503aa30953ee2c6bb75c589eef39281518f8fa7e41c'
+        };
+      }
+
+      activeCounterChallenge = chal;
+      if (!activeCounterChallenge.counter) activeCounterChallenge.counter = 'Pickup Counter #1';
+      if (!activeCounterChallenge.table) activeCounterChallenge.table = 'Table #4 (Zone A)';
+
+      const meta = document.getElementById('counter-qr-meta');
+      if (meta) {
+        meta.textContent = `${activeCounterChallenge.counter} · ${activeCounterChallenge.table}`;
+      }
+
+      try {
+        if (window.QREngine && typeof window.QREngine.renderSvg === 'function') {
+          const svg = window.QREngine.renderSvg(JSON.stringify(activeCounterChallenge), {
+            size: 210,
+            dark: '#F5E6D3',
+            light: '#1E1A18'
+          });
+          container.innerHTML = svg;
+        } else {
+          container.innerHTML = '<div style="color:var(--peach);padding:14px;font-size:0.85rem;">QR Engine loaded. Click Refresh Challenge to display.</div>';
+        }
+      } catch (err) {
+        console.error('Failed to render counter QR SVG:', err);
+        container.innerHTML = `<div style="color:var(--bad);padding:14px;font-size:0.85rem;">Error rendering QR: ${err.message}</div>`;
+      }
     }
 
     async function scanCurrentCounterQr() {
@@ -1080,46 +1091,70 @@
 
     async function activateCameraScanner() {
       const placeholder = document.getElementById('scanner-placeholder');
-      placeholder.innerHTML = `
-        <div style="font-size:0.95rem;color:var(--peach);font-weight:600;margin-bottom:6px;">📸 Requesting Camera Access...</div>
-        <div style="font-size:0.8rem;color:var(--cream-dim);max-width:280px;margin:0 auto 10px auto;">
-          Please click <b>Allow</b> in your browser popup.
-        </div>
-        <div style="font-size:0.75rem;color:var(--cream-muted);">
-          If no popup appears, check the 🔒 lock icon in the address bar.
-        </div>
-      `;
-      placeholder.style.display = 'block';
+      if (placeholder) {
+        placeholder.innerHTML = `
+          <div style="font-size:0.95rem;color:var(--peach);font-weight:600;margin-bottom:6px;">📸 Requesting Camera Access...</div>
+          <div style="font-size:0.8rem;color:var(--cream-dim);max-width:280px;margin:0 auto 10px auto;">
+            Please click <b>Allow</b> in your browser popup.
+          </div>
+          <div style="font-size:0.75rem;color:var(--cream-muted);">
+            If no popup appears, check the 🔒 lock icon in the address bar.
+          </div>
+        `;
+        placeholder.style.display = 'block';
+      }
       const video = document.getElementById('scanner-video');
+      if (!video) return;
 
-      cameraStream = await QREngine.startScanner(
-        video,
-        (qrText) => {
-          handleScannedChallenge(qrText);
-        },
-        (err) => {
+      try {
+        if (!window.QREngine || typeof window.QREngine.startScanner !== 'function') {
+          throw new Error('QR Scanner engine is initializing. Please try again.');
+        }
+
+        cameraStream = await window.QREngine.startScanner(
+          video,
+          (qrText) => {
+            handleScannedChallenge(qrText);
+          },
+          (err) => {
+            if (placeholder) {
+              placeholder.innerHTML = `
+                <div style="color:var(--bad);font-weight:700;font-size:0.95rem;margin-bottom:6px;">⚠️ Camera Access Unavailable</div>
+                <div style="font-size:0.8rem;color:var(--cream-dim);max-width:320px;margin:0 auto 12px auto;line-height:1.4;">
+                  ${err.message}
+                </div>
+                <div style="background:rgba(255,179,138,0.08);border:1px dashed var(--line);border-radius:var(--radius-sm);padding:8px;font-size:0.75rem;color:var(--cream-muted);max-width:320px;margin:0 auto 12px auto;text-align:left;">
+                  <b>💡 How to enable in Chrome:</b><br>
+                  1. Click the <b>🔒 lock</b> or <b>camera icon</b> in the top URL bar.<br>
+                  2. Set <b>Camera</b> to <b>Allow</b>.<br>
+                  3. Click Try Again below.
+                </div>
+                <div style="display:flex;gap:8px;justify-content:center;flex-wrap:wrap;">
+                  <button onclick="activateCameraScanner()" style="padding:6px 14px;font-size:0.8rem;">🔄 Try Again</button>
+                  <button class="secondary" onclick="document.getElementById('qr-file-input').click()" style="padding:6px 14px;font-size:0.8rem;">📁 Upload QR Image</button>
+                  <button class="quiet" onclick="scanCurrentCounterQr()" style="padding:6px 14px;font-size:0.8rem;border:1px solid var(--line);">⚡ Check In at Counter</button>
+                </div>
+              `;
+              placeholder.style.display = 'block';
+            }
+          }
+        );
+        if (cameraStream && placeholder) {
+          placeholder.style.display = 'none';
+        }
+      } catch (err) {
+        if (placeholder) {
           placeholder.innerHTML = `
-            <div style="color:var(--bad);font-weight:700;font-size:0.95rem;margin-bottom:6px;">⚠️ Camera Access Unavailable</div>
-            <div style="font-size:0.8rem;color:var(--cream-dim);max-width:320px;margin:0 auto 12px auto;line-height:1.4;">
-              ${err.message}
-            </div>
-            <div style="background:rgba(255,179,138,0.08);border:1px dashed var(--line);border-radius:var(--radius-sm);padding:8px;font-size:0.75rem;color:var(--cream-muted);max-width:320px;margin:0 auto 12px auto;text-align:left;">
-              <b>💡 How to enable in Chrome:</b><br>
-              1. Click the <b>🔒 lock</b> or <b>camera icon</b> in the top URL bar.<br>
-              2. Set <b>Camera</b> to <b>Allow</b>.<br>
-              3. Click Try Again below.
-            </div>
+            <div style="color:var(--bad);font-weight:700;font-size:0.95rem;margin-bottom:6px;">⚠️ Camera Error</div>
+            <div style="font-size:0.8rem;color:var(--cream-dim);max-width:320px;margin:0 auto 12px auto;">${err.message}</div>
             <div style="display:flex;gap:8px;justify-content:center;flex-wrap:wrap;">
               <button onclick="activateCameraScanner()" style="padding:6px 14px;font-size:0.8rem;">🔄 Try Again</button>
               <button class="secondary" onclick="document.getElementById('qr-file-input').click()" style="padding:6px 14px;font-size:0.8rem;">📁 Upload QR Image</button>
-              <button class="quiet" onclick="scanCurrentCounterQr()" style="padding:6px 14px;font-size:0.8rem;border:1px solid var(--line);">⚡ Use Counter QR Below</button>
+              <button class="quiet" onclick="scanCurrentCounterQr()" style="padding:6px 14px;font-size:0.8rem;border:1px solid var(--line);">⚡ Check In at Counter</button>
             </div>
           `;
           placeholder.style.display = 'block';
         }
-      );
-      if (cameraStream) {
-        placeholder.style.display = 'none';
       }
     }
 
@@ -1374,6 +1409,7 @@
     window.addEventListener('load', async () => {
       initSessionKey();
       loadConfig();
+      loadLiveCounterQr();
 
       if (typeof window.ethereum !== 'undefined') {
         try {

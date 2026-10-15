@@ -5,7 +5,7 @@
   // --- QR Code Generator (Type 1 to 10, ECC Level L/M) ---
   // Compact, standard implementation adapted for fast offline mobile rendering.
 
-  const QRMode = { NUMBER: 1, ALPHA_NUM: 2, 8BIT_BYTE: 4, KANJI: 8 }
+  const QRMode = { NUMBER: 1, ALPHA_NUM: 2, '8BIT_BYTE': 4, KANJI: 8 }
   const QRErrorCorrectLevel = { L: 1, M: 0, Q: 3, H: 2 }
 
   function QR8bitByte(data) {
@@ -636,37 +636,26 @@
       return null
     }
 
-    const getMediaWithTimeout = (constraints, ms = 5000) => {
-      return Promise.race([
-        navigator.mediaDevices.getUserMedia(constraints),
-        new Promise((_, reject) =>
-          setTimeout(() => {
-            const timeoutErr = new Error('Camera permission prompt timed out. Please check the camera permission icon in your browser URL bar.')
-            timeoutErr.name = 'TimeoutError'
-            reject(timeoutErr)
-          }, ms)
-        )
-      ])
-    }
-
     let stream = null
     try {
-      stream = await getMediaWithTimeout({
-        video: { facingMode: { ideal: 'environment' }, width: { ideal: 1280 } }
-      }, 5000)
+      // First try environment camera (ideal for smartphones)
+      stream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: { ideal: 'environment' } }
+      })
     } catch (e1) {
       try {
-        stream = await getMediaWithTimeout({ video: true }, 5000)
+        // Fallback for laptops / desktop webcams
+        stream = await navigator.mediaDevices.getUserMedia({ video: true })
       } catch (e2) {
         let msg = e2.message || 'Camera permission denied or camera unavailable.'
         if (e2.name === 'NotAllowedError' || e2.name === 'PermissionDeniedError') {
-          msg = 'Camera permission was denied. Please click the 🔒 lock or camera icon in your Chrome address bar to Allow access.'
+          msg = 'Camera permission was denied. Please click the 🔒 lock or camera icon in your Chrome address bar to Allow access, then try again.'
         } else if (e2.name === 'NotFoundError' || e2.name === 'DevicesNotFoundError') {
           msg = 'No camera found on this device.'
         } else if (e2.name === 'NotReadableError' || e2.name === 'TrackStartError') {
           msg = 'Camera is currently locked by another application or tab.'
-        } else if (e2.name === 'TimeoutError') {
-          msg = 'Camera permission prompt did not appear. Please check your browser address bar permissions or use the Counter QR option below.'
+        } else if (e2.name === 'OverconstrainedError') {
+          msg = 'Camera resolution/mode is not supported by your device.'
         }
         const customErr = new Error(msg)
         if (onError) onError(customErr)
@@ -676,7 +665,10 @@
 
     try {
       videoEl.srcObject = stream
+      videoEl.muted = true
+      videoEl.playsInline = true
       videoEl.setAttribute('playsinline', 'true')
+      videoEl.setAttribute('muted', 'true')
       await videoEl.play()
 
       let active = true
