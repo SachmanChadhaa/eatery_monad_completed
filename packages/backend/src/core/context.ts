@@ -40,20 +40,25 @@ export async function createBackendContext(opts?: {
   deploymentPath?: string
 }): Promise<BackendContext> {
   const chain = targetChain()
-  const dbUrl =
-    opts?.dbUrl ??
-    process.env.DATABASE_URL ??
-    (process.env.TEST === '1' ? 'pglite:' : 'postgres://canteen:canteen@127.0.0.1:5433/canteen')
+  const defaultPgUrl = 'postgres://canteen:canteen@127.0.0.1:5433/canteen'
+  const fallbackDir = resolve(repoRoot, '.data', 'pglite')
+  const defaultFallbackUrl = process.env.TEST === '1' ? 'pglite:' : `pglite:${fallbackDir}`
+
+  const dbUrl = opts?.dbUrl ?? process.env.DATABASE_URL ?? defaultPgUrl
 
   let db: Db
   try {
     db = await openDb(dbUrl)
+    await migrate(db)
   } catch (err) {
-    console.warn(`Failed to open primary database (${dbUrl}): ${(err as Error).message}. Falling back to in-memory PGlite.`)
-    db = await openDb('pglite:')
+    if (db!) {
+      await db.close().catch(() => {})
+    }
+    console.warn(`[CanteenPOS] Could not connect to database (${dbUrl}): ${(err as Error).message}`)
+    console.warn(`[CanteenPOS] Automatically falling back to embedded database (${defaultFallbackUrl}) - no Docker required.`)
+    db = await openDb(defaultFallbackUrl)
+    await migrate(db)
   }
-
-  await migrate(db)
 
   // Load keys
   const keys = loadKeys()

@@ -20,7 +20,23 @@ const chain = process.env.CHAIN === 'anvil' ? foundry : monadTestnet
 const deployment = JSON.parse(
   readFileSync(process.env.DEPLOYMENT ?? resolve(repoRoot, 'deployments', `${chain.id}.json`), 'utf8'),
 )
-const db = await openDb(process.env.DATABASE_URL ?? 'postgres://canteen:canteen@127.0.0.1:5433/canteen')
+const defaultPgUrl = 'postgres://canteen:canteen@127.0.0.1:5433/canteen'
+const fallbackDir = resolve(repoRoot, '.data', 'pglite')
+const fallbackUrl = `pglite:${fallbackDir}`
+const targetDbUrl = process.env.DATABASE_URL ?? defaultPgUrl
+
+let db: Db
+try {
+  db = await openDb(targetDbUrl)
+  await migrate(db)
+} catch (err) {
+  if (db!) await db.close().catch(() => {})
+  console.warn(`[indexer] Could not connect to ${targetDbUrl}: ${(err as Error).message}`)
+  console.warn(`[indexer] Using embedded database at ${fallbackUrl}`)
+  db = await openDb(fallbackUrl)
+  await migrate(db)
+}
+
 const client = createPublicClient({ chain, transport: http(process.env.RPC_URL || chain.rpcUrls.default.http[0]) })
 const indexer = new Indexer(db, client, {
   chainId: chain.id,
@@ -31,7 +47,6 @@ const indexer = new Indexer(db, client, {
 })
 
 const cmd = process.argv[2] ?? 'sync'
-await migrate(db)
 await indexer.init()
 
 if (cmd === 'migrate') {

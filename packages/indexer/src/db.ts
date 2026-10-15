@@ -1,6 +1,6 @@
 // One small interface over two drivers: PGlite (Postgres in WASM) for local dev and tests,
 // node-postgres for a real server. DATABASE_URL picks: "pglite:" (in memory), "pglite:<dir>", or "postgres://...".
-import { readFileSync } from 'node:fs'
+import { mkdirSync, readFileSync } from 'node:fs'
 import { dirname, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
@@ -18,6 +18,9 @@ export async function openDb(url: string): Promise<Db> {
   if (url.startsWith('pglite:')) {
     const { PGlite } = await import('@electric-sql/pglite')
     const dir = url.slice('pglite:'.length)
+    if (dir) {
+      mkdirSync(dir, { recursive: true })
+    }
     const pg = new PGlite(dir || undefined, { parsers: { 20: (v: string) => Number(v) } })
     await pg.waitReady
     return {
