@@ -741,8 +741,11 @@
       const deadline = now + 600;
       const nonce = BigInt(Date.now());
 
-      // Compute linesHash
-      const encodedLines = [];
+      // Compute linesHash: keccak256(abi.encode(Line[] lines))
+      const encodedLines = [
+        padUint(32),
+        padUint(lines.length)
+      ];
       for (const l of lines) {
         encodedLines.push(padUint(l.itemId));
         encodedLines.push(padUint(l.qty));
