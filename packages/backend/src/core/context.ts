@@ -40,11 +40,12 @@ export async function createBackendContext(opts?: {
   deploymentPath?: string
 }): Promise<BackendContext> {
   const chain = targetChain()
+  const isVercel = !!process.env.VERCEL || process.env.NOW_REGION !== undefined
   const defaultPgUrl = 'postgres://canteen:canteen@127.0.0.1:5433/canteen'
   const fallbackDir = resolve(repoRoot, '.data', 'pglite')
-  const defaultFallbackUrl = process.env.TEST === '1' ? 'pglite:' : `pglite:${fallbackDir}`
+  const defaultFallbackUrl = process.env.TEST === '1' || isVercel ? 'pglite:' : `pglite:${fallbackDir}`
 
-  const dbUrl = opts?.dbUrl ?? process.env.DATABASE_URL ?? defaultPgUrl
+  const dbUrl = opts?.dbUrl ?? (isVercel ? 'pglite:' : (process.env.DATABASE_URL ?? defaultPgUrl))
 
   let db: Db
   try {

@@ -1,6 +1,6 @@
 // One small interface over two drivers: PGlite (Postgres in WASM) for local dev and tests,
 // node-postgres for a real server. DATABASE_URL picks: "pglite:" (in memory), "pglite:<dir>", or "postgres://...".
-import { mkdirSync, readFileSync } from 'node:fs'
+import { existsSync, mkdirSync, readFileSync } from 'node:fs'
 import { dirname, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
@@ -60,8 +60,17 @@ export async function openDb(url: string): Promise<Db> {
   }
 }
 
+import { SCHEMA_SQL } from './schema.ts'
+
 const here = dirname(fileURLToPath(import.meta.url))
 
 export async function migrate(db: Db): Promise<void> {
-  await db.exec(readFileSync(resolve(here, 'schema.sql'), 'utf8'))
+  try {
+    const p = resolve(here, 'schema.sql')
+    if (existsSync(p)) {
+      await db.exec(readFileSync(p, 'utf8'))
+      return
+    }
+  } catch (_) {}
+  await db.exec(SCHEMA_SQL)
 }

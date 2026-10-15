@@ -1,6 +1,12 @@
 {
   "version": 2,
+  "cleanUrls": true,
   "rewrites": [
-    { "source": "/(.*)", "destination": "/api" }
+    { "source": "/api/(.*)", "destination": "/api?path=$1" },
+    { "source": "/student", "destination": "/student.html" },
+    { "source": "/tablet", "destination": "/tablet.html" },
+    { "source": "/setup", "destination": "/setup.html" },
+    { "source": "/offline-signing", "destination": "/offline-signing.html" },
+    { "source": "/offline", "destination": "/offline-signing.html" }
   ]
 }
