@@ -4,6 +4,7 @@ import {
   canteenOrdersAbi,
   canteenTypes,
   dayId,
+  hashLines,
   preorderCap,
   secondOfDay,
 } from '@canteenpos/sdk'
@@ -144,7 +145,21 @@ export async function handleApiRequest(
       items,
       contract: ctx.deployment.address,
       chainId: ctx.chain.id,
+      vault: ctx.keys.VAULT_PK?.address || ctx.deployment.address,
     })
+    return true
+  }
+
+  // Helper route to guarantee 100% hash parity between client and server
+  if (req.method === 'POST' && pathname === '/api/lines/hash') {
+    try {
+      const body = await readJsonBody(req)
+      const lines = body.lines ?? []
+      const linesHash = hashLines(lines)
+      sendJson(res, 200, { ok: true, linesHash })
+    } catch (e) {
+      sendError(res, 400, (e as Error).message)
+    }
     return true
   }
 

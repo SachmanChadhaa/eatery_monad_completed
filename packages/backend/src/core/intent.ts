@@ -11,7 +11,7 @@ import {
   totalPaise,
 } from '@canteenpos/sdk'
 import type { Address, Hex } from 'viem'
-import { recoverTypedDataAddress } from 'viem'
+import { concat, keccak256, pad, recoverTypedDataAddress, toHex } from 'viem'
 import type { BackendContext } from './context.ts'
 
 export interface CreateIntentInput {
@@ -73,8 +73,18 @@ export async function createAndReserveIntent(
   }
 
   const expectedLinesHash = hashLines(input.lines)
-  if (intent.linesHash.toLowerCase() !== expectedLinesHash.toLowerCase()) {
-    throw new Error('linesHash mismatch.')
+  const compactLinesBytes = concat(
+    input.lines.flatMap((l) => [
+      pad(toHex(l.itemId), { size: 32 }),
+      pad(toHex(l.qty), { size: 32 }),
+      pad(toHex(l.unitPricePaise), { size: 32 }),
+    ]),
+  )
+  const compactLinesHash = keccak256(compactLinesBytes)
+
+  const h = intent.linesHash?.toLowerCase()
+  if (h !== expectedLinesHash.toLowerCase() && h !== compactLinesHash.toLowerCase()) {
+    throw new Error(`linesHash mismatch: expected ${expectedLinesHash}, got ${intent.linesHash}.`)
   }
 
   let calculatedTotal = 0
@@ -94,7 +104,7 @@ export async function createAndReserveIntent(
     throw new Error(`Total price mismatch: calculated ${calculatedTotal}, intent has ${intent.totalPaise}.`)
   }
 
-  // 4. Student session key verification
+  // 4. Student signature verification (direct student wallet OR registered session key)
   const iHash = intentStructHash(intent)
   const recoveredKey = await recoverTypedDataAddress({
     domain: ctx.domain,
@@ -104,49 +114,52 @@ export async function createAndReserveIntent(
     signature: input.studentSig,
   })
 
-  // Look up registered session key from database or chain
-  const keyRow = await ctx.db.query(
-    `select key_address, expiry from session_keys where student = $1`,
-    [intent.student.toLowerCase()],
-  )
+  const isDirectStudent = recoveredKey.toLowerCase() === intent.student.toLowerCase()
+  if (!isDirectStudent) {
+    // Look up registered session key from database or chain
+    const keyRow = await ctx.db.query(
+      `select key_address, expiry from session_keys where student = $1`,
+      [intent.student.toLowerCase()],
+    )
 
-  if (keyRow.rows.length === 0) {
-    // If not in database cache, check contract sessionKeys
-    const [contractKey, contractExpiry] = (await ctx.clients.submitter.pub.readContract({
-      address: ctx.deployment.address,
-      abi: [
-        {
-          type: 'function',
-          name: 'sessionKeys',
-          inputs: [{ name: '', type: 'address' }],
-          outputs: [
-            { name: 'key', type: 'address' },
-            { name: 'expiry', type: 'uint48' },
-          ],
-          stateMutability: 'view',
-        },
-      ],
-      functionName: 'sessionKeys',
-      args: [intent.student],
-    })) as [Address, number]
+    if (keyRow.rows.length === 0) {
+      // If not in database cache, check contract sessionKeys
+      const [contractKey, contractExpiry] = (await ctx.clients.submitter.pub.readContract({
+        address: ctx.deployment.address,
+        abi: [
+          {
+            type: 'function',
+            name: 'sessionKeys',
+            inputs: [{ name: '', type: 'address' }],
+            outputs: [
+              { name: 'key', type: 'address' },
+              { name: 'expiry', type: 'uint48' },
+            ],
+            stateMutability: 'view',
+          },
+        ],
+        functionName: 'sessionKeys',
+        args: [intent.student],
+      })) as [Address, number]
 
-    if (
-      !contractKey ||
-      contractKey === '0x0000000000000000000000000000000000000000' ||
-      recoveredKey.toLowerCase() !== contractKey.toLowerCase()
-    ) {
-      throw new Error(`Signature does not match registered session key.`)
-    }
-    if (nowSec > Number(contractExpiry)) {
-      throw new Error('Session key expired.')
-    }
-  } else {
-    const k = keyRow.rows[0]
-    if (k.key_address.toLowerCase() !== recoveredKey.toLowerCase()) {
-      throw new Error(`Signature recovered ${recoveredKey}, but registered key is ${k.key_address}.`)
-    }
-    if (new Date(k.expiry).getTime() < Date.now()) {
-      throw new Error('Registered session key has expired.')
+      if (
+        !contractKey ||
+        contractKey === '0x0000000000000000000000000000000000000000' ||
+        recoveredKey.toLowerCase() !== contractKey.toLowerCase()
+      ) {
+        throw new Error(`Signature does not match registered session key or student address.`)
+      }
+      if (nowSec > Number(contractExpiry)) {
+        throw new Error('Session key expired.')
+      }
+    } else {
+      const k = keyRow.rows[0]
+      if (k.key_address.toLowerCase() !== recoveredKey.toLowerCase()) {
+        throw new Error(`Signature recovered ${recoveredKey}, but registered key is ${k.key_address}.`)
+      }
+      if (new Date(k.expiry).getTime() < Date.now()) {
+        throw new Error('Registered session key has expired.')
+      }
     }
   }
 

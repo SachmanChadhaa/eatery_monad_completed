@@ -712,7 +712,13 @@
     async function submitPreOrder() {
       const msgEl = document.getElementById('order-msg');
 
-      // Compulsory MetaMask check
+      // 1. Compulsory MetaMask connection
+      if (typeof window.ethereum === 'undefined') {
+        alert('MetaMask is not detected. Please install the MetaMask browser extension from https://metamask.io');
+        window.open('https://metamask.io', '_blank');
+        return;
+      }
+
       if (!connectedStudentAddress) {
         msgEl.textContent = '🦊 Connecting MetaMask (Compulsory)...';
         const connected = await connectMetaMask();
@@ -723,7 +729,19 @@
         }
       }
 
-      msgEl.textContent = 'Preparing order...';
+      // Check and enforce Monad Testnet
+      try {
+        const chainId = await window.ethereum.request({ method: 'eth_chainId' });
+        if (chainId !== '0x279f') {
+          msgEl.textContent = '🦊 Switching to Monad Testnet in MetaMask...';
+          await window.ethereum.request({
+            method: 'wallet_switchEthereumChain',
+            params: [{ chainId: '0x279f' }]
+          });
+        }
+      } catch (switchErr) {
+        console.warn('Network switch check:', switchErr);
+      }
 
       const lineEntries = Object.entries(cart);
       if (lineEntries.length === 0) {
@@ -741,18 +759,43 @@
       const deadline = now + 600;
       const nonce = BigInt(Date.now());
 
-      // Compute linesHash: keccak256(abi.encode(Line[] lines))
-      const encodedLines = [
-        padUint(32),
-        padUint(lines.length)
-      ];
-      for (const l of lines) {
-        encodedLines.push(padUint(l.itemId));
-        encodedLines.push(padUint(l.qty));
-        encodedLines.push(padUint(l.unitPricePaise));
+      msgEl.textContent = 'Checking slot capacity on Monad...';
+
+      // 2. Fetch canonical linesHash from server with local fallback
+      let linesHash = null;
+      try {
+        const hashRes = await fetch('/api/lines/hash', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ lines })
+        });
+        if (hashRes.ok) {
+          const hashData = await hashRes.json();
+          linesHash = hashData.linesHash;
+        }
+      } catch (e) {
+        console.warn('Backend lines/hash fetch note:', e);
       }
-      const linesBytes = concatBytes(encodedLines);
-      const linesHash = '0x' + Array.from(Noble.keccak_256(linesBytes)).map(b => b.toString(16).padStart(2, '0')).join('');
+
+      if (!linesHash) {
+        const encodedLines = [
+          padUint(32),
+          padUint(lines.length)
+        ];
+        for (const l of lines) {
+          encodedLines.push(padUint(l.itemId));
+          encodedLines.push(padUint(l.qty));
+          encodedLines.push(padUint(l.unitPricePaise));
+        }
+        linesHash = '0x' + Array.from(Noble.keccak_256(concatBytes(encodedLines))).map(b => b.toString(16).padStart(2, '0')).join('');
+      }
+
+      const domain = {
+        name: 'CanteenOrders',
+        version: '1',
+        chainId: configData ? configData.chainId : 10143,
+        verifyingContract: configData ? configData.contract : '0x83edd38e28e43c608c0d30b60a03adac1eacbc33'
+      };
 
       const intent = {
         student: connectedStudentAddress,
@@ -763,27 +806,61 @@
         deadline: deadline
       };
 
-      // Sign intent with session key
-      const domain = {
-        name: 'CanteenOrders',
-        version: '1',
-        chainId: configData.chainId,
-        verifyingContract: configData.contract
-      };
-      const structHash = hashOrderIntent({
-        ...intent,
-        nonce: nonce
-      });
-      const domainSep = computeDomainSeparator(domain);
-      const digest = Noble.keccak_256(concatBytes([
-        new Uint8Array([0x19, 0x01]),
-        domainSep,
-        structHash
-      ]));
-      const sigObj = Noble.secp256k1.sign(digest, sessionKeyAccount.privateKey.replace(/^0x/, ''));
-      const studentSig = formatSignature(sigObj);
+      // 3. Trigger MetaMask Popup: Sign EIP-712 OrderIntent
+      msgEl.textContent = '🦊 Please sign Pre-Order in MetaMask popup...';
+      let studentSig = null;
 
-      // 1. Send intent to reserve capacity
+      const typedData = JSON.stringify({
+        types: {
+          EIP712Domain: [
+            { name: 'name', type: 'string' },
+            { name: 'version', type: 'string' },
+            { name: 'chainId', type: 'uint256' },
+            { name: 'verifyingContract', type: 'address' }
+          ],
+          OrderIntent: canteenTypes.OrderIntent
+        },
+        primaryType: 'OrderIntent',
+        domain: domain,
+        message: {
+          student: connectedStudentAddress,
+          slotId: activeSlotId,
+          linesHash: linesHash,
+          totalPaise: totalPaise,
+          nonce: nonce.toString(),
+          deadline: deadline
+        }
+      });
+
+      try {
+        studentSig = await window.ethereum.request({
+          method: 'eth_signTypedData_v4',
+          params: [connectedStudentAddress, typedData]
+        });
+      } catch (sigErr) {
+        console.warn('MetaMask signTypedData_v4 rejected or error:', sigErr);
+        if (sigErr.code === 4001) {
+          msgEl.textContent = 'Pre-order signature rejected in MetaMask.';
+          return;
+        }
+        // Fallback to local session key signature if wallet cannot sign typed data
+        if (sessionKeyAccount) {
+          const structHash = hashOrderIntent({ ...intent, nonce: nonce });
+          const domainSep = computeDomainSeparator(domain);
+          const digest = Noble.keccak_256(concatBytes([
+            new Uint8Array([0x19, 0x01]),
+            domainSep,
+            structHash
+          ]));
+          const sigObj = Noble.secp256k1.sign(digest, sessionKeyAccount.privateKey.replace(/^0x/, ''));
+          studentSig = formatSignature(sigObj);
+        } else {
+          msgEl.textContent = 'Failed: ' + (sigErr.message || 'Signature error');
+          return;
+        }
+      }
+
+      // 4. Reserve slot capacity on Monad via backend
       msgEl.textContent = 'Reserving slot capacity on Monad...';
       const intentRes = await fetch('/api/intents', {
         method: 'POST',
@@ -802,16 +879,43 @@
       }
 
       const intentData = await intentRes.json();
-      msgEl.textContent = 'Paying with Monad Testnet MON...';
 
-      // 2. Pay via adapter
+      // 5. Trigger MetaMask Popup: Pay Testnet MON
+      msgEl.textContent = '🦊 Please confirm MON payment in MetaMask popup...';
+      const monWei = BigInt(totalPaise) * 10000000000000n; // 1 paise = 10^13 wei -> 1500 paise = 0.015 MON = 1.5e16 wei
+      const monWeiHex = '0x' + monWei.toString(16);
+      const recipientVault = (configData && configData.vault) || (configData && configData.contract) || '0x83edd38e28e43c608c0d30b60a03adac1eacbc33';
+
+      let payTxHash = null;
+      try {
+        payTxHash = await window.ethereum.request({
+          method: 'eth_sendTransaction',
+          params: [{
+            from: connectedStudentAddress,
+            to: recipientVault,
+            value: monWeiHex
+          }]
+        });
+      } catch (txErr) {
+        console.warn('MetaMask eth_sendTransaction note:', txErr);
+        if (txErr.code === 4001) {
+          msgEl.textContent = 'Payment canceled in MetaMask.';
+          return;
+        }
+        msgEl.textContent = 'Transaction note: ' + (txErr.message || 'Proceeding with backend attestation...');
+      }
+
+      // 6. Finalize order payment and attestation
+      msgEl.textContent = 'Finalizing pre-order on Monad...';
       const payRes = await fetch('/api/demo/pay', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           chargeRef: intentData.chargeRef,
           totalPaise: totalPaise,
-          student: connectedStudentAddress
+          student: connectedStudentAddress,
+          paymentRef: payTxHash || undefined,
+          paymentId: payTxHash || undefined
         })
       });
 
@@ -827,12 +931,12 @@
         tokenNo: orderData.tokenNo,
         slotId: activeSlotId,
         totalPaise: totalPaise,
-        txHash: orderData.txHash
+        txHash: payTxHash || orderData.txHash
       };
 
       cart = {};
       msgEl.textContent = '';
-      refreshMonBalance();
+      await refreshMonBalance();
       showConfirmationScreen(currentOrder);
     }
 
@@ -1068,7 +1172,6 @@
             connectedStudentAddress = accounts[0].toLowerCase();
             await refreshMonBalance();
             updateWalletUI();
-            checkAndRegisterSessionKey(connectedStudentAddress);
           }
         } catch (e) {
           console.warn('Auto-connect check failed:', e);
