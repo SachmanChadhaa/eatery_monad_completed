@@ -636,22 +636,37 @@
       return null
     }
 
+    const getMediaWithTimeout = (constraints, ms = 5000) => {
+      return Promise.race([
+        navigator.mediaDevices.getUserMedia(constraints),
+        new Promise((_, reject) =>
+          setTimeout(() => {
+            const timeoutErr = new Error('Camera permission prompt timed out. Please check the camera permission icon in your browser URL bar.')
+            timeoutErr.name = 'TimeoutError'
+            reject(timeoutErr)
+          }, ms)
+        )
+      ])
+    }
+
     let stream = null
     try {
-      stream = await navigator.mediaDevices.getUserMedia({
+      stream = await getMediaWithTimeout({
         video: { facingMode: { ideal: 'environment' }, width: { ideal: 1280 } }
-      })
+      }, 5000)
     } catch (e1) {
       try {
-        stream = await navigator.mediaDevices.getUserMedia({ video: true })
+        stream = await getMediaWithTimeout({ video: true }, 5000)
       } catch (e2) {
         let msg = e2.message || 'Camera permission denied or camera unavailable.'
         if (e2.name === 'NotAllowedError' || e2.name === 'PermissionDeniedError') {
-          msg = 'Camera permission was denied. Please click the camera icon in your browser address bar to allow access.'
+          msg = 'Camera permission was denied. Please click the 🔒 lock or camera icon in your Chrome address bar to Allow access.'
         } else if (e2.name === 'NotFoundError' || e2.name === 'DevicesNotFoundError') {
           msg = 'No camera found on this device.'
         } else if (e2.name === 'NotReadableError' || e2.name === 'TrackStartError') {
           msg = 'Camera is currently locked by another application or tab.'
+        } else if (e2.name === 'TimeoutError') {
+          msg = 'Camera permission prompt did not appear. Please check your browser address bar permissions or use the Counter QR option below.'
         }
         const customErr = new Error(msg)
         if (onError) onError(customErr)
@@ -726,8 +741,40 @@
     }
   }
 
+  function scanImageFile(file, onResult, onError) {
+    if (!file) return
+    const reader = new FileReader()
+    reader.onload = function (e) {
+      const img = new Image()
+      img.onload = function () {
+        const canvas = document.createElement('canvas')
+        canvas.width = img.width
+        canvas.height = img.height
+        const ctx = canvas.getContext('2d')
+        if (!ctx) {
+          if (onError) onError(new Error('Canvas 2D context not available'))
+          return
+        }
+        ctx.drawImage(img, 0, 0)
+        const imgData = ctx.getImageData(0, 0, canvas.width, canvas.height)
+        if (typeof window.jsQR === 'function') {
+          const code = window.jsQR(imgData.data, imgData.width, imgData.height)
+          if (code && code.data) {
+            onResult(code.data)
+            return
+          }
+        }
+        if (onError) onError(new Error('No QR code detected in the selected image. Please try another image.'))
+      }
+      img.onerror = () => onError && onError(new Error('Could not load image file.'))
+      img.src = e.target.result
+    }
+    reader.readAsDataURL(file)
+  }
+
   global.QREngine = {
     renderSvg,
     startScanner,
+    scanImageFile,
   }
 })(typeof window !== 'undefined' ? window : globalThis)

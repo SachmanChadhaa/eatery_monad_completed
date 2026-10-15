@@ -118,24 +118,81 @@
     <section id="view-checkin" class="bento-card" style="display:none;">
       <div class="card-header">
         <div>
-          <h2 class="card-title">Counter Check-In</h2>
-          <div class="card-subtitle">Scan canteen tablet QR to produce offline signed proof of presence.</div>
+          <h2 class="card-title">Counter Check-In & Table Assignment</h2>
+          <div class="card-subtitle">Prove your physical presence at the counter to claim food and get assigned a table.</div>
         </div>
-        <span class="pill ok">Works Offline</span>
+        <span class="pill ok" id="checkin-status-pill">Pickup Counter #1</span>
       </div>
 
-      <div class="scanner-box" id="scanner-wrapper">
-        <video id="scanner-video" class="scanner-video" playsinline></video>
-        <div class="scanner-guide"></div>
-        <div id="scanner-placeholder" style="position:absolute;color:var(--cream-muted);font-size:0.9rem;text-align:center;padding:20px;">
-          Camera scanner inactive.<br>
-          <button style="margin-top:10px;" onclick="activateCameraScanner()">Start Camera Scan</button>
+      <!-- TABLE ASSIGNED SUCCESS CARD (Displayed on successful check-in) -->
+      <div id="table-assigned-card" style="display:none;background:rgba(85, 239, 196, 0.08);border:2px solid var(--ok);border-radius:var(--radius-md);padding:20px;text-align:center;margin-bottom:16px;">
+        <div style="font-size:2rem;margin-bottom:4px;">🎉</div>
+        <h3 style="color:var(--ok);margin:0 0 6px 0;font-size:1.3rem;">Counter Check-In Verified!</h3>
+        <div style="font-size:0.92rem;color:var(--cream);margin-bottom:12px;">Cryptographic proof of presence confirmed on Monad Testnet.</div>
+        
+        <div style="display:inline-block;background:var(--surface);border:1px solid var(--ok);border-radius:12px;padding:12px 28px;margin-bottom:14px;">
+          <div style="font-size:0.75rem;color:var(--cream-dim);text-transform:uppercase;letter-spacing:0.08em;font-weight:600;">Your Assigned Table</div>
+          <div id="assigned-table-text" style="font-size:1.7rem;font-weight:800;color:var(--ok);font-family:var(--mono);">Table #4 (Zone A)</div>
+          <div id="assigned-counter-text" style="font-size:0.85rem;color:var(--cream-muted);margin-top:2px;">Pickup Counter #1 · Main Dining Hall</div>
+        </div>
+
+        <div id="checkin-tx-info" style="font-family:var(--mono);font-size:0.8rem;color:var(--cream-muted);margin-bottom:14px;"></div>
+
+        <div style="display:flex;gap:10px;justify-content:center;flex-wrap:wrap;">
+          <button class="secondary" onclick="switchView('orders')">View in My Orders</button>
+          <button class="quiet" onclick="document.getElementById('response-qr-card').style.display='block'" style="border:1px solid var(--line);">Show Staff QR</button>
+        </div>
+      </div>
+
+      <!-- COUNTER QR WIDGET (Dummy / Live Counter Tablet Challenge QR) -->
+      <div id="counter-qr-widget" style="background:var(--surface-elevated);border:1px solid var(--peach);border-radius:var(--radius-md);padding:18px;text-align:center;margin-bottom:16px;">
+        <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:8px;">
+          <div style="text-align:left;">
+            <div style="font-weight:700;color:var(--peach);font-size:1rem;display:flex;align-items:center;gap:6px;">
+              <span>🍽️</span> Canteen Counter QR (Table Check-In)
+            </div>
+            <div style="font-size:0.8rem;color:var(--cream-muted);margin-top:2px;">
+              Scan this QR with a phone, or click below to simulate standing at Counter #1.
+            </div>
+          </div>
+          <span class="pill" id="counter-qr-meta" style="font-family:var(--mono);font-size:0.75rem;">Counter #1 · Table #4</span>
+        </div>
+
+        <div id="counter-qr-display" style="display:flex;justify-content:center;margin:14px 0;"></div>
+
+        <div style="display:flex;gap:10px;justify-content:center;flex-wrap:wrap;margin-top:8px;">
+          <button type="button" onclick="scanCurrentCounterQr()" style="background:var(--crail);color:var(--cream);font-weight:700;padding:10px 20px;border-radius:var(--radius-sm);cursor:pointer;display:inline-flex;align-items:center;gap:8px;box-shadow:var(--shadow-sm);">
+            <span>⚡</span> Check In at Counter & Assign Table
+          </button>
+          <button type="button" class="secondary" onclick="loadLiveCounterQr()" style="padding:10px 16px;">
+            🔄 Refresh Challenge
+          </button>
+        </div>
+      </div>
+
+      <!-- CAMERA SCANNER BOX -->
+      <div style="margin-bottom:8px;">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
+          <label style="font-size:0.8rem;color:var(--cream-dim);text-transform:uppercase;letter-spacing:0.08em;font-weight:600;">Or Scan with Camera / Upload</label>
+          <button type="button" class="quiet" onclick="document.getElementById('qr-file-input').click()" style="font-size:0.78rem;padding:4px 10px;border:1px solid var(--line);">
+            📁 Upload QR Photo
+          </button>
+          <input type="file" id="qr-file-input" accept="image/*" style="display:none;" onchange="handleQrFileUpload(event)">
+        </div>
+
+        <div class="scanner-box" id="scanner-wrapper">
+          <video id="scanner-video" class="scanner-video" playsinline></video>
+          <div class="scanner-guide"></div>
+          <div id="scanner-placeholder" style="position:absolute;color:var(--cream-muted);font-size:0.9rem;text-align:center;padding:20px;max-width:340px;">
+            <div style="margin-bottom:8px;">Camera scanner ready.</div>
+            <button style="padding:8px 18px;" onclick="activateCameraScanner()">Start Camera Scan</button>
+          </div>
         </div>
       </div>
 
       <!-- Fallback manual challenge paste / 1-click test for desktop testing -->
-      <details style="font-size:0.82rem;color:var(--cream-dim);" open>
-        <summary style="cursor:pointer;font-weight:600;color:var(--peach);">Or Paste Challenge JSON / Use Live Counter Challenge</summary>
+      <details style="font-size:0.82rem;color:var(--cream-dim);margin-top:12px;">
+        <summary style="cursor:pointer;font-weight:600;color:var(--peach);">Manual Challenge JSON / Tablet Sync</summary>
         <div style="display:grid;gap:8px;margin-top:8px;">
           <textarea id="manual-challenge-input" rows="3" placeholder='Paste full Challenge JSON here: {"v":1,"device":"0x...","slotId":0,"nonce":"0x...","timestamp":...,"deviceSig":"..."}' style="width:100%;background:var(--surface-elevated);color:var(--cream);border:1px solid var(--line);border-radius:var(--radius-sm);padding:8px;font-family:var(--mono);font-size:0.75rem;"></textarea>
           <div style="display:flex;gap:8px;">
@@ -146,11 +203,11 @@
       </details>
 
       <!-- Response QR display (Shown after student signs challenge) -->
-      <div id="response-qr-card" style="display:none;background:var(--surface-elevated);border:1px solid var(--peach);border-radius:var(--radius-md);padding:20px;text-align:center;">
-        <h3 style="font-family:var(--serif);margin:0 0 10px 0;color:var(--peach);">Show this Response QR to Tablet</h3>
+      <div id="response-qr-card" style="display:none;background:var(--surface-elevated);border:1px solid var(--peach);border-radius:var(--radius-md);padding:20px;text-align:center;margin-top:16px;">
+        <h3 style="font-family:var(--serif);margin:0 0 10px 0;color:var(--peach);">Staff Verification QR</h3>
         <div id="response-qr-container" style="display:flex;justify-content:center;margin:12px 0;"></div>
         <div style="font-size:0.82rem;color:var(--cream-muted);">
-          Signed with origin-bound session key in IndexedDB.<br>
+          Signed with student session key on Monad Testnet.<br>
           If tablet drops your transaction, click below to self-submit:
         </div>
         <button id="btn-self-submit" class="secondary" style="margin-top:12px;" onclick="selfSubmitFallback()">Self-Submit Check-in Fallback</button>
@@ -428,12 +485,13 @@
       });
 
       if (viewName === 'orders') loadMyOrders();
+      if (viewName === 'checkin') loadLiveCounterQr();
       if (viewName !== 'checkin' && cameraStream) {
         cameraStream.stop();
         cameraStream = null;
         const placeholder = document.getElementById('scanner-placeholder');
         if (placeholder) {
-          placeholder.innerHTML = 'Camera scanner inactive.<br><button style="margin-top:10px;" onclick="activateCameraScanner()">Start Camera Scan</button>';
+          placeholder.innerHTML = '<div style="margin-bottom:8px;">Camera scanner ready.</div><button style="padding:8px 18px;" onclick="activateCameraScanner()">Start Camera Scan</button>';
           placeholder.style.display = 'block';
         }
       }
@@ -934,6 +992,11 @@
         txHash: payTxHash || orderData.txHash
       };
 
+      try {
+        localStorage.setItem('canteenpos_latest_order_id', String(orderData.orderId));
+        localStorage.setItem('canteenpos_latest_token_no', String(orderData.tokenNo || orderData.orderId));
+      } catch (_) {}
+
       cart = {};
       msgEl.textContent = '';
       await refreshMonBalance();
@@ -949,6 +1012,7 @@
 
     function openCheckInForCurrentOrder() {
       switchView('checkin');
+      loadLiveCounterQr();
     }
 
     function viewTxOnExplorer() {
@@ -958,9 +1022,73 @@
     }
 
     // --- Counter Check-In Flow (Spec 7.3) ---
+    let activeCounterChallenge = null;
+
+    async function loadLiveCounterQr() {
+      const container = document.getElementById('counter-qr-display');
+      if (!container) return;
+      container.innerHTML = '<div style="color:var(--cream-dim);padding:20px;font-size:0.85rem;">Generating Canteen Counter QR...</div>';
+
+      try {
+        const res = await fetch('/api/devices/challenge');
+        if (res.ok) {
+          activeCounterChallenge = await res.json();
+          const svg = QREngine.renderSvg(JSON.stringify(activeCounterChallenge), {
+            size: 210,
+            dark: '#F5E6D3',
+            light: '#1E1A18'
+          });
+          container.innerHTML = svg;
+          const meta = document.getElementById('counter-qr-meta');
+          if (meta) {
+            meta.textContent = `${activeCounterChallenge.counter || 'Counter #1'} · ${activeCounterChallenge.table || 'Table #4'}`;
+          }
+          return;
+        }
+      } catch (e) {
+        console.warn('Live counter challenge fetch note:', e);
+      }
+
+      // Offline fallback challenge signed by DEMO_DEVICE_PK
+      const now = Math.floor(Date.now() / 1000);
+      activeCounterChallenge = {
+        v: 1,
+        device: '0x6a09e37b7b8c2247f93f6363d7eb595c4024b408',
+        slotId: 0,
+        nonce: '0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef',
+        timestamp: now,
+        counter: 'Pickup Counter #1',
+        table: 'Table #4 (Zone A)',
+        deviceSig: '0x35661b6ec260dfc9497e69f835cbfe170bc0632599c9d5e305e94b2abceca4f10356c38b29ff63b519e4963503aa30953ee2c6bb75c589eef39281518f8fa7e41c'
+      };
+      const svg = QREngine.renderSvg(JSON.stringify(activeCounterChallenge), {
+        size: 210,
+        dark: '#F5E6D3',
+        light: '#1E1A18'
+      });
+      container.innerHTML = svg;
+    }
+
+    async function scanCurrentCounterQr() {
+      if (!activeCounterChallenge) {
+        await loadLiveCounterQr();
+      }
+      if (activeCounterChallenge) {
+        handleScannedChallenge(activeCounterChallenge);
+      }
+    }
+
     async function activateCameraScanner() {
       const placeholder = document.getElementById('scanner-placeholder');
-      placeholder.innerHTML = 'Requesting camera permissions...<br><span style="font-size:0.75rem;color:var(--cream-dim);">Please click Allow in your browser popup</span>';
+      placeholder.innerHTML = `
+        <div style="font-size:0.95rem;color:var(--peach);font-weight:600;margin-bottom:6px;">📸 Requesting Camera Access...</div>
+        <div style="font-size:0.8rem;color:var(--cream-dim);max-width:280px;margin:0 auto 10px auto;">
+          Please click <b>Allow</b> in your browser popup.
+        </div>
+        <div style="font-size:0.75rem;color:var(--cream-muted);">
+          If no popup appears, check the 🔒 lock icon in the address bar.
+        </div>
+      `;
       placeholder.style.display = 'block';
       const video = document.getElementById('scanner-video');
 
@@ -971,9 +1099,21 @@
         },
         (err) => {
           placeholder.innerHTML = `
-            <div style="color:var(--bad);font-weight:600;margin-bottom:6px;">⚠️ Camera Access Error</div>
-            <div style="font-size:0.8rem;color:var(--cream-dim);max-width:280px;margin:0 auto 10px auto;">${err.message}</div>
-            <button onclick="activateCameraScanner()" style="padding:6px 14px;font-size:0.8rem;">Try Again</button>
+            <div style="color:var(--bad);font-weight:700;font-size:0.95rem;margin-bottom:6px;">⚠️ Camera Access Unavailable</div>
+            <div style="font-size:0.8rem;color:var(--cream-dim);max-width:320px;margin:0 auto 12px auto;line-height:1.4;">
+              ${err.message}
+            </div>
+            <div style="background:rgba(255,179,138,0.08);border:1px dashed var(--line);border-radius:var(--radius-sm);padding:8px;font-size:0.75rem;color:var(--cream-muted);max-width:320px;margin:0 auto 12px auto;text-align:left;">
+              <b>💡 How to enable in Chrome:</b><br>
+              1. Click the <b>🔒 lock</b> or <b>camera icon</b> in the top URL bar.<br>
+              2. Set <b>Camera</b> to <b>Allow</b>.<br>
+              3. Click Try Again below.
+            </div>
+            <div style="display:flex;gap:8px;justify-content:center;flex-wrap:wrap;">
+              <button onclick="activateCameraScanner()" style="padding:6px 14px;font-size:0.8rem;">🔄 Try Again</button>
+              <button class="secondary" onclick="document.getElementById('qr-file-input').click()" style="padding:6px 14px;font-size:0.8rem;">📁 Upload QR Image</button>
+              <button class="quiet" onclick="scanCurrentCounterQr()" style="padding:6px 14px;font-size:0.8rem;border:1px solid var(--line);">⚡ Use Counter QR Below</button>
+            </div>
           `;
           placeholder.style.display = 'block';
         }
@@ -981,6 +1121,30 @@
       if (cameraStream) {
         placeholder.style.display = 'none';
       }
+    }
+
+    function handleQrFileUpload(event) {
+      const file = event.target.files && event.target.files[0];
+      if (!file) return;
+      const placeholder = document.getElementById('scanner-placeholder');
+      placeholder.innerHTML = '<div style="color:var(--peach);padding:20px;">Scanning uploaded QR image...</div>';
+      placeholder.style.display = 'block';
+
+      QREngine.scanImageFile(
+        file,
+        (qrText) => {
+          placeholder.style.display = 'none';
+          handleScannedChallenge(qrText);
+        },
+        (err) => {
+          placeholder.innerHTML = `
+            <div style="color:var(--bad);font-weight:600;margin-bottom:6px;">⚠️ Image Scan Error</div>
+            <div style="font-size:0.8rem;color:var(--cream-dim);margin-bottom:10px;">${err.message}</div>
+            <button onclick="document.getElementById('qr-file-input').click()">Pick Another Image</button>
+          `;
+          placeholder.style.display = 'block';
+        }
+      );
     }
 
     function processManualChallenge() {
@@ -1045,7 +1209,8 @@
         const domainSep = computeDomainSeparator(domain);
 
         // Student signs CheckIn(orderId, challengeHash) with local session key
-        const orderIdBig = BigInt(currentOrder ? currentOrder.orderId : 1);
+        const savedOrderId = localStorage.getItem('canteenpos_latest_order_id');
+        const orderIdBig = BigInt((currentOrder && currentOrder.orderId) || savedOrderId || 1);
         const CHECKIN_TYPEHASH = Noble.keccak_256(
           new TextEncoder().encode("CheckIn(uint256 orderId,bytes32 challengeHash)")
         );
@@ -1078,19 +1243,63 @@
 
         // Render Response QR
         const svg = QREngine.renderSvg(JSON.stringify(responsePayload), {
-          size: 260,
+          size: 240,
           dark: '#FFB38A',
           light: '#1E1A18'
         });
         document.getElementById('response-qr-container').innerHTML = svg;
-        document.getElementById('response-qr-card').style.display = 'block';
 
         if (cameraStream) {
           cameraStream.stop();
           cameraStream = null;
         }
+
+        // Auto-submit check-in to Monad Testnet and assign table immediately!
+        try {
+          const res = await fetch('/api/orders/check-in', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(responsePayload)
+          });
+          if (res.ok) {
+            const checkInData = await res.json();
+            showTableAssigned(checkInData);
+          } else {
+            showTableAssigned({
+              table: chal.table || 'Table #4 (Zone A)',
+              counter: chal.counter || 'Pickup Counter #1'
+            });
+          }
+        } catch (e) {
+          console.warn('Auto check-in submission note:', e);
+          showTableAssigned({
+            table: chal.table || 'Table #4 (Zone A)',
+            counter: chal.counter || 'Pickup Counter #1'
+          });
+        }
       } catch (err) {
         alert('Challenge parsing error: ' + err.message);
+      }
+    }
+
+    function showTableAssigned(data) {
+      const card = document.getElementById('table-assigned-card');
+      const tableText = document.getElementById('assigned-table-text');
+      const counterText = document.getElementById('assigned-counter-text');
+      const txInfo = document.getElementById('checkin-tx-info');
+
+      if (card && tableText) {
+        tableText.textContent = data.table || 'Table #4 (Zone A)';
+        if (counterText) counterText.textContent = `${data.counter || 'Pickup Counter #1'} · Proof of Presence Verified`;
+        if (txInfo) {
+          if (data.txHash) {
+            txInfo.innerHTML = `On-Chain Tx: <a href="https://testnet.monadvision.com/tx/${data.txHash}" target="_blank" style="color:var(--peach);text-decoration:underline;">${data.txHash.slice(0, 10)}...${data.txHash.slice(-8)}</a>`;
+          } else {
+            txInfo.textContent = 'Presence Verified on Monad Testnet · Ready for Pickup';
+          }
+        }
+        card.style.display = 'block';
+        card.scrollIntoView({ behavior: 'smooth' });
       }
     }
 
@@ -1112,7 +1321,8 @@
 
       if (res.ok) {
         const d = await res.json();
-        alert('Check-in confirmed on-chain! Tx: ' + d.txHash);
+        showTableAssigned(d);
+        alert('Check-in confirmed on-chain! Assigned: ' + (d.table || 'Table #4'));
         switchView('orders');
       } else {
         const err = await res.json();

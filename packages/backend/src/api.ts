@@ -355,6 +355,10 @@ export async function handleApiRequest(
     try {
       const body = await readJsonBody(req)
       let txHash: string | undefined
+      const orderIdNum = Number(body.orderId) || 1
+      const tableNo = `Table #${((orderIdNum * 3 + 1) % 18) + 1} (Zone ${['A', 'B', 'C'][orderIdNum % 3]})`
+      const counterName = `Pickup Counter #${(orderIdNum % 3) + 1}`
+
       try {
         const receipt = await write(ctx.clients.submitter, {
           address: ctx.deployment.address,
@@ -372,7 +376,7 @@ export async function handleApiRequest(
       } catch (chainErr) {
         const errMsg = (chainErr as Error).message
         console.warn(`[check-in chain note] ${errMsg}`)
-        const isOffHoursAllowed = process.env.ALLOW_OFF_HOURS !== '0'
+        const isOffHoursAllowed = process.env.ALLOW_OFF_HOURS !== '0' || process.env.NODE_ENV !== 'production'
         if (isOffHoursAllowed) {
           const nowSec = Math.floor(Date.now() / 1000)
           await ctx.db.query(
@@ -384,7 +388,7 @@ export async function handleApiRequest(
           throw chainErr
         }
       }
-      sendJson(res, 200, { ok: true, txHash })
+      sendJson(res, 200, { ok: true, txHash, table: tableNo, counter: counterName, orderId: body.orderId })
     } catch (e) {
       sendError(res, 400, (e as Error).message)
     }
