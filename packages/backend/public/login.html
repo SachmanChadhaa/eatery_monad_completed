@@ -7,6 +7,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700;800&family=Space+Grotesk:wght@500;600;700;800&family=Syne:wght@700;800;900&display=swap">
   <link rel="stylesheet" href="/styles.css">
+  <script src="/lucide.js"></script>
   <style>
     .role-grid {
       display: grid;
@@ -136,7 +137,7 @@
       <!-- Role 1: Student Pre-Order -->
       <div class="role-tile" id="role-tile-student" onclick="selectRole('student')">
         <div class="role-icon-banner">
-          <span class="role-icon">🎒</span>
+          <span class="role-icon" style="color:var(--electric-cyan);"><i data-lucide="graduation-cap" class="lucide-xl"></i></span>
           <span class="brand-badge" style="color:var(--electric-cyan);border-color:var(--electric-cyan);">07:00-08:58</span>
         </div>
         <h3 class="role-title">Student Portal</h3>
@@ -149,7 +150,7 @@
       <!-- Role 2: Canteen POS -->
       <div class="role-tile active-pos" id="role-tile-pos" onclick="selectRole('pos')">
         <div class="role-icon-banner">
-          <span class="role-icon">⚡</span>
+          <span class="role-icon" style="color:var(--acid-lime);"><i data-lucide="zap" class="lucide-xl"></i></span>
           <span class="brand-badge" style="color:var(--acid-lime);border-color:var(--acid-lime);">CASHIER POS</span>
         </div>
         <h3 class="role-title">Canteen POS</h3>
@@ -162,7 +163,7 @@
       <!-- Role 3: Kitchen Tablet KDS -->
       <div class="role-tile" id="role-tile-kds" onclick="selectRole('kds')">
         <div class="role-icon-banner">
-          <span class="role-icon">🍳</span>
+          <span class="role-icon" style="color:var(--hazard-orange);"><i data-lucide="chef-hat" class="lucide-xl"></i></span>
           <span class="brand-badge" style="color:var(--hazard-orange);border-color:var(--hazard-orange);">KDS DISPLAY</span>
         </div>
         <h3 class="role-title">Kitchen Tablet</h3>
@@ -175,7 +176,7 @@
       <!-- Role 4: Owner Admin -->
       <div class="role-tile" id="role-tile-owner" onclick="selectRole('owner')">
         <div class="role-icon-banner">
-          <span class="role-icon">🦊</span>
+          <span class="role-icon" style="color:var(--violent-neon);"><i data-lucide="shield-check" class="lucide-xl"></i></span>
           <span class="brand-badge" style="color:var(--violent-neon);border-color:var(--violent-neon);">OWNER PORTAL</span>
         </div>
         <h3 class="role-title">Owner Admin</h3>
@@ -224,28 +225,28 @@
         <div id="login-alert" style="display:none;padding:10px 14px;border:2px solid #000;border-radius:var(--radius-xs);font-family:var(--mono);font-size:0.82rem;font-weight:700;"></div>
 
         <!-- Submit Button -->
-        <button type="submit" id="btn-login-submit" style="background:var(--acid-lime);color:#000;font-size:1.05rem;font-weight:900;padding:14px;box-shadow:4px 4px 0px #000;margin-top:4px;">
-          ⚡ AUTHENTICATE & ENTER TERMINAL
+        <button type="submit" id="btn-login-submit" style="background:var(--acid-lime);color:#000;font-size:1.05rem;font-weight:900;padding:14px;box-shadow:4px 4px 0px #000;margin-top:4px;display:inline-flex;align-items:center;justify-content:center;gap:8px;">
+          <i data-lucide="arrow-right"></i> AUTHENTICATE & ENTER TERMINAL
         </button>
       </form>
 
       <!-- Quick-Fill Presets for Frictionless Evaluation -->
       <div style="margin-top:20px;border-top:1.5px dashed var(--line-alt);padding-top:14px;">
-        <div style="font-family:var(--mono);font-size:0.72rem;color:var(--cream-dim);text-transform:uppercase;font-weight:700;margin-bottom:8px;">
-          ⚡ Quick-Fill Demo Credentials:
+        <div style="font-family:var(--mono);font-size:0.72rem;color:var(--cream-dim);text-transform:uppercase;font-weight:700;margin-bottom:8px;display:flex;align-items:center;gap:6px;">
+          <i data-lucide="sparkles" class="lucide-sm"></i> Quick-Fill Demo Credentials:
         </div>
         <div style="display:flex;gap:8px;flex-wrap:wrap;">
           <button type="button" class="quick-preset-pill" onclick="quickFill('pos')">
-            ⚡ POS: pos@canteen.edu / pos123
+            <i data-lucide="zap" class="lucide-sm"></i> POS: pos@canteen.edu / pos123
           </button>
           <button type="button" class="quick-preset-pill" onclick="quickFill('kds')">
-            🍳 Kitchen: kitchen@canteen.edu / kitchen123
+            <i data-lucide="chef-hat" class="lucide-sm"></i> Kitchen: kitchen@canteen.edu / kitchen123
           </button>
           <button type="button" class="quick-preset-pill" onclick="quickFill('student')">
-            🎒 Student: student@kccemsr.edu.in / student123
+            <i data-lucide="graduation-cap" class="lucide-sm"></i> Student: student@kccemsr.edu.in / student123
           </button>
           <button type="button" class="quick-preset-pill" onclick="quickFill('owner')">
-            🦊 Owner: admin@canteen.edu / admin123
+            <i data-lucide="shield-check" class="lucide-sm"></i> Owner: admin@canteen.edu / admin123
           </button>
         </div>
       </div>
@@ -269,6 +270,12 @@
   <script>
     let currentRole = 'pos';
 
+    function renderIcons() {
+      if (window.lucide && typeof window.lucide.createIcons === 'function') {
+        window.lucide.createIcons();
+      }
+    }
+
     const ROLE_CONFIGS = {
       pos: {
         title: 'Counter Cashier Terminal Login',
@@ -277,7 +284,7 @@
         userLabel: 'Cashier Terminal ID / Email',
         defaultUser: 'pos@canteen.edu',
         defaultPass: 'pos123',
-        btnText: '⚡ ENTER CANTEEN POS TERMINAL',
+        btnText: 'ENTER CANTEEN POS TERMINAL',
         btnBg: 'var(--acid-lime)',
         tileClass: 'active-pos',
         redirect: '/pos'
@@ -289,7 +296,7 @@
         userLabel: 'Kitchen Chef Username / ID',
         defaultUser: 'kitchen@canteen.edu',
         defaultPass: 'kitchen123',
-        btnText: '🍳 ENTER KITCHEN PREP BOARD',
+        btnText: 'ENTER KITCHEN PREP BOARD',
         btnBg: 'var(--hazard-orange)',
         tileClass: 'active-kds',
         redirect: '/tablet'
@@ -301,7 +308,7 @@
         userLabel: 'College .edu.in Email Address',
         defaultUser: 'student@kccemsr.edu.in',
         defaultPass: 'student123',
-        btnText: '🎒 ENTER STUDENT MENU',
+        btnText: 'ENTER STUDENT MENU',
         btnBg: 'var(--electric-cyan)',
         tileClass: 'active-student',
         redirect: '/'
@@ -313,7 +320,7 @@
         userLabel: 'Admin ID / Deployer Username',
         defaultUser: 'admin@canteen.edu',
         defaultPass: 'admin123',
-        btnText: '🦊 ENTER OWNER PORTAL',
+        btnText: 'ENTER OWNER PORTAL',
         btnBg: 'var(--violent-neon)',
         tileClass: 'active-owner',
         redirect: '/setup'
@@ -343,10 +350,11 @@
       document.getElementById('input-password').value = cfg.defaultPass;
 
       const submitBtn = document.getElementById('btn-login-submit');
-      submitBtn.textContent = cfg.btnText;
+      submitBtn.innerHTML = `<i data-lucide="arrow-right"></i> ${cfg.btnText}`;
       submitBtn.style.background = cfg.btnBg;
 
       hideAlert();
+      renderIcons();
     }
 
     function quickFill(role) {
@@ -356,7 +364,8 @@
       alert.style.background = 'rgba(204, 255, 0, 0.15)';
       alert.style.borderColor = 'var(--acid-lime)';
       alert.style.color = '#ffffff';
-      alert.textContent = `Credentials filled for ${ROLE_CONFIGS[role].badge}! Click "Authenticate" to proceed.`;
+      alert.innerHTML = `<i data-lucide="sparkles" class="lucide-sm"></i> Credentials filled for ${ROLE_CONFIGS[role].badge}! Click "Authenticate" to proceed.`;
+      renderIcons();
     }
 
     function togglePasswordVisibility() {
@@ -376,7 +385,8 @@
       const alertEl = document.getElementById('login-alert');
 
       btn.disabled = true;
-      btn.textContent = 'Verifying Credentials...';
+      btn.innerHTML = '<i data-lucide="loader-2" class="lucide-sm"></i> Verifying Credentials...';
+      renderIcons();
 
       try {
         const res = await fetch('/api/auth/login', {
@@ -406,7 +416,8 @@
         alertEl.style.background = 'rgba(0, 255, 136, 0.2)';
         alertEl.style.borderColor = 'var(--ok)';
         alertEl.style.color = '#ffffff';
-        alertEl.innerHTML = `✅ <strong>ACCESS GRANTED:</strong> Authenticated as ${data.user.name}. Redirecting...`;
+        alertEl.innerHTML = `<i data-lucide="check-circle" class="lucide-sm"></i> <strong>ACCESS GRANTED:</strong> Authenticated as ${data.user.name}. Redirecting...`;
+        renderIcons();
 
         setTimeout(() => {
           window.location.href = data.redirectTo || ROLE_CONFIGS[currentRole].redirect;
@@ -416,9 +427,10 @@
         alertEl.style.background = 'rgba(255, 0, 85, 0.2)';
         alertEl.style.borderColor = 'var(--bad)';
         alertEl.style.color = '#ffffff';
-        alertEl.innerHTML = `⚠️ <strong>ACCESS DENIED:</strong> ${err.message}`;
+        alertEl.innerHTML = `<i data-lucide="alert-triangle" class="lucide-sm"></i> <strong>ACCESS DENIED:</strong> ${err.message}`;
         btn.disabled = false;
-        btn.textContent = ROLE_CONFIGS[currentRole].btnText;
+        btn.innerHTML = `<i data-lucide="arrow-right"></i> ${ROLE_CONFIGS[currentRole].btnText}`;
+        renderIcons();
       }
     }
 
@@ -431,6 +443,7 @@
       } else {
         selectRole('pos');
       }
+      renderIcons();
     });
   </script>
 </body>

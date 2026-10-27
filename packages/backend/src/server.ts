@@ -45,6 +45,7 @@ async function main() {
   const qrEngineJs = readStatic('qr-engine.js') ?? ''
   const nobleJs = readStatic('noble-secp256k1.js') ?? ''
   const jsqrJs = readStatic('jsqr.js') ?? ''
+  const lucideJs = readStatic('lucide.js') ?? ''
 
   const offlineCheckPath = resolve(repoRoot, 'tools/v2-offline-signing/offline-signing-check.html')
   const offlineCheckHtml = existsSync(offlineCheckPath) ? readFileSync(offlineCheckPath, 'utf8') : ''
@@ -110,6 +111,11 @@ async function main() {
         if (p === '/jsqr.js') {
           res.writeHead(200, { 'Content-Type': 'application/javascript' })
           res.end(jsqrJs)
+          return
+        }
+        if (p === '/lucide.js') {
+          res.writeHead(200, { 'Content-Type': 'application/javascript' })
+          res.end(lucideJs)
           return
         }
       }

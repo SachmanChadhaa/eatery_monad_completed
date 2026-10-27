@@ -98,6 +98,29 @@ a:hover {
   text-decoration: none;
 }
 
+/* Lucide Icons Utility */
+.lucide {
+  width: 1.15em;
+  height: 1.15em;
+  vertical-align: -0.18em;
+  display: inline-block;
+  stroke: currentColor;
+  stroke-width: 2.2px;
+  fill: none;
+}
+.icon-sm .lucide, .lucide.icon-sm {
+  width: 0.95em;
+  height: 0.95em;
+}
+.icon-lg .lucide, .lucide.icon-lg {
+  width: 1.6em;
+  height: 1.6em;
+}
+.icon-xl .lucide, .lucide.icon-xl {
+  width: 2.2em;
+  height: 2.2em;
+}
+
 /* ==========================================================================
    HAZARD TICKER / MARQUEE RIBBON
    ========================================================================== */

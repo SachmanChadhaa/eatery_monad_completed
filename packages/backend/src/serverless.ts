@@ -77,6 +77,9 @@ export default async function handler(req: IncomingMessage, res: ServerResponse)
       if (p === '/qr-engine.js') {
         if (serveFile([resolve(publicDir, 'qr-engine.js'), resolve(backendPublicDir, 'qr-engine.js'), resolve(staticDir, 'qr-engine.js')], 'application/javascript')) return
       }
+      if (p === '/lucide.js') {
+        if (serveFile([resolve(publicDir, 'lucide.js'), resolve(backendPublicDir, 'lucide.js'), resolve(staticDir, 'lucide.js')], 'application/javascript')) return
+      }
     }
 
     res.writeHead(404, { 'Content-Type': 'text/plain' })
