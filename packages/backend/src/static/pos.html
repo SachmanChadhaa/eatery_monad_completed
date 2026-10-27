@@ -1,0 +1,989 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>CanteenPOS · Canteen Dashboard & Counter POS</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700;800&family=Space+Grotesk:wght@500;600;700;800&family=Syne:wght@700;800&display=swap">
+  <link rel="stylesheet" href="/styles.css">
+  <script src="/noble-secp256k1.js"></script>
+  <script src="/jsqr.js"></script>
+  <script src="/qr-engine.js"></script>
+</head>
+<body>
+  <!-- Ticker Tape Marquee -->
+  <div class="hazard-strip">
+    <div class="hazard-strip-inner">
+      /// CANTEENPOS COUNTER TERMINAL & METRICS /// 10,000 TPS MONAD TESTNET /// INSTANT TOKEN REDEMPTION /// HARD CAP ON-CHAIN LEDGER /// LIVE ORDER FEED /// CANTEENPOS COUNTER TERMINAL & METRICS /// 10,000 TPS MONAD TESTNET /// INSTANT TOKEN REDEMPTION /// HARD CAP ON-CHAIN LEDGER /// LIVE ORDER FEED ///
+    </div>
+  </div>
+
+  <!-- Header Bar -->
+  <header class="header-bar">
+    <div class="brand-group">
+      <h1 class="brand-title">CanteenPOS</h1>
+      <span class="brand-badge">CANTEEN DASHBOARD</span>
+    </div>
+    <div class="nav-links">
+      <button class="nav-btn active" id="tab-btn-pos" onclick="switchTab('pos')">Counter POS</button>
+      <button class="nav-btn" id="tab-btn-dashboard" onclick="switchTab('dashboard')">Analytics</button>
+      <button class="nav-btn" id="tab-btn-counter" onclick="switchTab('counter')">Redemption</button>
+      <button class="nav-btn" id="tab-btn-stock" onclick="switchTab('stock')">Inventory</button>
+      <button class="nav-btn" id="tab-btn-ledger" onclick="switchTab('ledger')">Orders Ledger</button>
+      <a href="/tablet" class="nav-btn" style="color:var(--acid-lime);border:1px solid var(--acid-lime);">Kitchen KDS ↗</a>
+      <a href="/" class="nav-btn" style="color:var(--electric-cyan);">Student Menu ↗</a>
+    </div>
+  </header>
+
+  <main class="container wide">
+    <!-- Live Status Strip -->
+    <div class="strip">
+      <span class="pill ok" id="pos-status-pill">POS Shift: Live</span>
+      <span class="pill live" id="pos-chain-pill">Monad Testnet: 10143</span>
+      <span class="pill" id="pos-window-pill">Window: 07:00 - 08:58 IST</span>
+      <span class="pill" id="pos-tokens-count-pill">Today's Tokens: 0</span>
+      <button class="quiet" onclick="refreshPosData()" style="padding:4px 10px;font-size:0.75rem;">↻ Sync All</button>
+    </div>
+
+    <!-- TAB 1: Counter POS Terminal (Walk-in Orders) -->
+    <section id="view-pos" class="pos-layout">
+      <!-- Menu Catalog (Left) -->
+      <div style="display:flex;flex-direction:column;gap:14px;">
+        <div class="bento-card" style="padding:16px;">
+          <div class="card-header">
+            <div>
+              <h2 class="card-title">Counter Quick-Order Menu</h2>
+              <div class="card-subtitle">Click items to add to current order ticket for walk-in students.</div>
+            </div>
+            <!-- Category Filter Pills -->
+            <div style="display:flex;gap:6px;flex-wrap:wrap;" id="pos-cat-filters">
+              <button class="quiet active" style="padding:4px 10px;font-size:0.75rem;" onclick="filterCategory('all', this)">All</button>
+              <button class="quiet" style="padding:4px 10px;font-size:0.75rem;" onclick="filterCategory('snacks', this)">Snacks</button>
+              <button class="quiet" style="padding:4px 10px;font-size:0.75rem;" onclick="filterCategory('meals', this)">Meals</button>
+              <button class="quiet" style="padding:4px 10px;font-size:0.75rem;" onclick="filterCategory('drinks', this)">Drinks</button>
+            </div>
+          </div>
+
+          <div style="margin-top:10px;">
+            <input type="text" id="pos-item-search" placeholder="🔍 Search item name or ID..." oninput="filterSearch(this.value)" style="font-size:0.85rem;padding:8px 12px;">
+          </div>
+
+          <!-- Items Grid -->
+          <div class="pos-menu-grid" id="pos-items-grid" style="margin-top:14px;">
+            <!-- Dynamically populated -->
+          </div>
+        </div>
+      </div>
+
+      <!-- POS Cart & Ticket Dispatch (Right) -->
+      <div class="pos-cart-panel">
+        <div style="display:flex;justify-content:space-between;align-items:center;border-bottom:2px solid #000;padding-bottom:10px;">
+          <h2 class="card-title" style="margin:0;">Current Ticket</h2>
+          <span class="brand-badge" id="ticket-number-preview">TOKEN #--</span>
+        </div>
+
+        <!-- Customer Identification -->
+        <div>
+          <label style="font-size:0.75rem;font-family:var(--mono);text-transform:uppercase;color:var(--cream-dim);font-weight:700;">Customer / Student</label>
+          <div style="display:flex;gap:6px;margin-top:4px;">
+            <input type="text" id="pos-customer-name" placeholder="Name or Roll # (e.g. Rahul S. - Roll 42)" value="Walk-in Student" style="font-size:0.85rem;padding:8px 10px;">
+          </div>
+          <div style="display:flex;gap:6px;margin-top:6px;">
+            <button type="button" class="quiet" style="padding:2px 8px;font-size:0.7rem;" onclick="setCustomerPreset('Walk-in Student')">Student</button>
+            <button type="button" class="quiet" style="padding:2px 8px;font-size:0.7rem;" onclick="setCustomerPreset('Faculty / Staff')">Faculty</button>
+            <button type="button" class="quiet" style="padding:2px 8px;font-size:0.7rem;" onclick="setCustomerPreset('Campus Guest')">Guest</button>
+          </div>
+        </div>
+
+        <!-- Rush Slot Assignment -->
+        <div>
+          <label style="font-size:0.75rem;font-family:var(--mono);text-transform:uppercase;color:var(--cream-dim);font-weight:700;">Pickup / Rush Slot</label>
+          <select id="pos-slot-select" style="margin-top:4px;padding:8px 10px;font-size:0.85rem;">
+            <!-- Dynamically populated -->
+          </select>
+        </div>
+
+        <!-- Cart Items List -->
+        <div>
+          <label style="font-size:0.75rem;font-family:var(--mono);text-transform:uppercase;color:var(--cream-dim);font-weight:700;">Order Lines</label>
+          <div id="pos-cart-items" style="display:flex;flex-direction:column;gap:8px;margin-top:6px;max-height:240px;overflow-y:auto;padding-right:4px;">
+            <div style="text-align:center;padding:24px;color:var(--cream-dim);font-size:0.85rem;border:1px dashed var(--line-alt);">
+              Cart empty.<br>Tap menu items on the left to add.
+            </div>
+          </div>
+        </div>
+
+        <!-- Cart Calculation -->
+        <div style="border-top:2px dashed #000;padding-top:10px;display:flex;flex-direction:column;gap:6px;">
+          <div style="display:flex;justify-content:space-between;font-size:0.85rem;color:var(--cream-muted);">
+            <span>Total Portions:</span>
+            <span id="pos-cart-portions" style="font-family:var(--mono);font-weight:700;color:var(--cream);">0</span>
+          </div>
+          <div style="display:flex;justify-content:space-between;align-items:baseline;">
+            <span style="font-weight:700;color:var(--cream);">Ticket Total:</span>
+            <div style="text-align:right;">
+              <div id="pos-cart-total-inr" style="font-family:var(--mono);font-size:1.4rem;font-weight:800;color:var(--acid-lime);">₹0.00</div>
+              <div id="pos-cart-total-mon" style="font-family:var(--mono);font-size:0.75rem;color:var(--cream-dim);">0.000 MON</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Payment Tender Options -->
+        <div>
+          <label style="font-size:0.75rem;font-family:var(--mono);text-transform:uppercase;color:var(--cream-dim);font-weight:700;margin-bottom:6px;display:block;">Payment Tender</label>
+          <div class="tender-grid">
+            <button type="button" class="tender-btn active" id="tender-upi" onclick="selectTender('UPI')">⚡ UPI QR</button>
+            <button type="button" class="tender-btn" id="tender-cash" onclick="selectTender('Cash')">💵 Cash</button>
+            <button type="button" class="tender-btn" id="tender-monad" onclick="selectTender('Monad')">🦊 Monad MON</button>
+            <button type="button" class="tender-btn" id="tender-card" onclick="selectTender('MealCard')">💳 Meal Card</button>
+          </div>
+        </div>
+
+        <!-- Action Button -->
+        <button type="button" id="btn-dispatch-order" onclick="dispatchCounterOrder()" style="background:var(--acid-lime);color:#000;font-size:1rem;font-weight:800;padding:14px;box-shadow:4px 4px 0px #000;">
+          ⚡ ISSUE TOKEN & DISPATCH TO KITCHEN
+        </button>
+        <button type="button" class="quiet" onclick="clearPosCart()" style="font-size:0.75rem;padding:4px;">Clear Cart</button>
+      </div>
+    </section>
+
+    <!-- TAB 2: Operations & Metrics Dashboard -->
+    <section id="view-dashboard" style="display:none;flex-direction:column;gap:18px;">
+      <!-- KPI Metrics Cards -->
+      <div class="bento-grid">
+        <div class="bento-card">
+          <div class="card-subtitle">TODAY'S TOTAL ORDERS</div>
+          <div style="font-family:var(--mono);font-size:2.4rem;font-weight:900;color:var(--acid-lime);" id="metric-total-orders">0</div>
+          <div style="font-size:0.8rem;color:var(--cream-muted);display:flex;gap:12px;margin-top:4px;">
+            <span>Pre-orders: <strong id="metric-preorders" style="color:var(--electric-cyan);">0</strong></span>
+            <span>Walk-ins: <strong id="metric-walkins" style="color:var(--violent-light);">0</strong></span>
+          </div>
+        </div>
+
+        <div class="bento-card">
+          <div class="card-subtitle">TOTAL REVENUE (TODAY)</div>
+          <div style="font-family:var(--mono);font-size:2.4rem;font-weight:900;color:var(--ok);" id="metric-total-revenue">₹0.00</div>
+          <div style="font-size:0.8rem;color:var(--cream-muted);margin-top:4px;" id="metric-mon-revenue">≈ 0.000 MON equivalent</div>
+        </div>
+
+        <div class="bento-card">
+          <div class="card-subtitle">IN KITCHEN / READY</div>
+          <div style="display:flex;align-items:baseline;gap:12px;">
+            <div style="font-family:var(--mono);font-size:2.4rem;font-weight:900;color:var(--hazard-orange);" id="metric-cooking">0</div>
+            <span style="font-size:0.85rem;color:var(--cream-muted);">cooking</span>
+            <div style="font-family:var(--mono);font-size:2.4rem;font-weight:900;color:var(--acid-lime);margin-left:8px;" id="metric-ready">0</div>
+            <span style="font-size:0.85rem;color:var(--cream-muted);">ready</span>
+          </div>
+          <div style="font-size:0.8rem;color:var(--cream-muted);margin-top:4px;">
+            Served: <strong id="metric-served" style="color:var(--ok);">0</strong> · Forfeited: <strong id="metric-forfeited" style="color:var(--bad);">0</strong>
+          </div>
+        </div>
+
+        <div class="bento-card">
+          <div class="card-subtitle">REFUND EXPOSURE & PAID</div>
+          <div style="font-family:var(--mono);font-size:2.4rem;font-weight:900;color:var(--hot-magenta);" id="metric-refund-exposure">₹0.00</div>
+          <div style="font-size:0.8rem;color:var(--cream-muted);margin-top:4px;">
+            Owed count: <strong id="metric-refund-owed-count">0</strong> · Settled: <strong id="metric-refund-paid-count">0</strong>
+          </div>
+        </div>
+      </div>
+
+      <!-- Pre-Order Rush Slot Capacity Tracker (Spec 1.2, D7) -->
+      <div class="bento-card">
+        <div class="card-header">
+          <div>
+            <h2 class="card-title">Pre-Order Rush Slot Capacity Monitor</h2>
+            <div class="card-subtitle">30% pre-order cap strictly enforced on-chain. Remaining 70% physical capacity serves walk-up counter rush.</div>
+          </div>
+          <span class="pill ok">CAP: 30% ON-CHAIN</span>
+        </div>
+
+        <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(220px, 1fr));gap:14px;margin-top:10px;" id="dashboard-slots-grid">
+          <!-- Dynamically populated -->
+        </div>
+      </div>
+
+      <!-- Order Status Distribution -->
+      <div class="bento-card">
+        <h2 class="card-title">Order Lifecycle Funnel (Today)</h2>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px;" id="dashboard-funnel-pills">
+          <!-- Dynamically populated -->
+        </div>
+      </div>
+    </section>
+
+    <!-- TAB 3: Counter Redemption & Check-in Desk -->
+    <section id="view-counter" style="display:none;flex-direction:column;gap:16px;">
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:18px;">
+        <!-- Left: Quick Search & Manual Redemption -->
+        <div class="bento-card">
+          <h2 class="card-title">Look Up & Verify Token</h2>
+          <div class="card-subtitle">Enter student token number, order ID, or scan response QR to redeem.</div>
+
+          <div style="display:flex;gap:8px;margin-top:12px;">
+            <input type="text" id="lookup-token-input" placeholder="Enter Token # (e.g. 14) or Order ID" style="font-family:var(--mono);font-size:1rem;padding:10px 14px;">
+            <button type="button" onclick="lookupOrder()" style="padding:10px 18px;">Search</button>
+          </div>
+
+          <!-- Order Lookup Result Card -->
+          <div id="lookup-result-box" style="display:none;border:2px solid #000;border-radius:var(--radius-sm);padding:16px;background:var(--surface-elevated);margin-top:14px;">
+            <div style="display:flex;justify-content:space-between;align-items:flex-start;">
+              <div>
+                <span class="brand-badge" id="lookup-token-badge">TOKEN #--</span>
+                <h3 style="font-family:var(--serif);margin:6px 0 2px 0;font-size:1.3rem;" id="lookup-order-id">Order #--</h3>
+                <div style="font-size:0.8rem;color:var(--cream-muted);" id="lookup-student-addr">Student: 0x...</div>
+              </div>
+              <span class="pill" id="lookup-status-pill">Placed</span>
+            </div>
+
+            <div style="border-top:1px dashed var(--line-alt);margin:10px 0;padding-top:10px;" id="lookup-items-list">
+              <!-- Items -->
+            </div>
+
+            <!-- Action buttons -->
+            <div style="display:flex;gap:10px;margin-top:12px;" id="lookup-actions-row">
+              <button type="button" id="btn-manual-checkin" onclick="executeLookupCheckIn()" style="flex:1;background:var(--violent-neon);color:#000;">
+                🛎️ Mark Checked In
+              </button>
+              <button type="button" id="btn-manual-serve" onclick="executeLookupServe()" style="flex:1;background:var(--ok);color:#000;">
+                📦 Hand Over & Serve
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Right: Counter Scanner Viewport -->
+        <div class="bento-card">
+          <h2 class="card-title">Scanner for Student Phone Response QR</h2>
+          <div class="card-subtitle">Scan student response QR directly at the counter.</div>
+
+          <div class="scanner-box" style="margin-top:10px;">
+            <video id="pos-scanner-video" class="scanner-video" playsinline></video>
+            <div class="scanner-guide"></div>
+            <div id="pos-scanner-placeholder" style="position:absolute;color:var(--cream-muted);text-align:center;">
+              <button onclick="startPosScanner()">Activate Counter Scanner</button>
+            </div>
+          </div>
+
+          <div id="pos-scan-feedback" style="display:none;padding:12px;border:2px solid #000;border-radius:var(--radius-sm);margin-top:10px;text-align:center;">
+            <!-- Feedback -->
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- TAB 4: Menu & Stock Availability Manager -->
+    <section id="view-stock" style="display:none;flex-direction:column;gap:14px;">
+      <div class="bento-card">
+        <div class="card-header">
+          <div>
+            <h2 class="card-title">Live Menu & Sold-Out Toggles</h2>
+            <div class="card-subtitle">Staff 1-click toggle. Toggling an item SOLD OUT updates on-chain state on Monad and immediately makes open unserved orders refundable (Spec D10).</div>
+          </div>
+          <button class="quiet" onclick="loadStockList()">↻ Refresh Menu</button>
+        </div>
+
+        <div id="pos-stock-container" style="display:grid;gap:10px;margin-top:14px;">
+          <!-- Dynamically populated -->
+        </div>
+      </div>
+    </section>
+
+    <!-- TAB 5: Orders Ledger -->
+    <section id="view-ledger" style="display:none;flex-direction:column;gap:14px;">
+      <div class="bento-card">
+        <div class="card-header">
+          <div>
+            <h2 class="card-title">Today's Orders Ledger</h2>
+            <div class="card-subtitle">Complete ledger of today's pre-orders, walk-ins, and on-chain settlements.</div>
+          </div>
+          <div style="display:flex;gap:8px;">
+            <select id="ledger-slot-filter" onchange="loadLedger()" style="width:auto;padding:6px 10px;font-size:0.8rem;">
+              <option value="">All Slots</option>
+            </select>
+            <select id="ledger-status-filter" onchange="loadLedger()" style="width:auto;padding:6px 10px;font-size:0.8rem;">
+              <option value="">All Statuses</option>
+              <option value="Placed">Placed</option>
+              <option value="CheckedIn">Checked In</option>
+              <option value="Served">Served</option>
+              <option value="Forfeited">Forfeited</option>
+              <option value="RefundOwed">Refund Owed</option>
+            </select>
+            <button class="quiet" onclick="loadLedger()">↻ Refresh</button>
+          </div>
+        </div>
+
+        <div style="overflow-x:auto;margin-top:12px;">
+          <table>
+            <thead>
+              <tr>
+                <th>TOKEN</th>
+                <th>ORDER ID</th>
+                <th>SOURCE</th>
+                <th>SLOT</th>
+                <th>ITEMS</th>
+                <th>TOTAL</th>
+                <th>STATUS</th>
+                <th>ACTIONS</th>
+              </tr>
+            </thead>
+            <tbody id="ledger-tbody">
+              <!-- Dynamically populated -->
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <!-- Thermal Paper Receipt Modal -->
+  <div id="receipt-modal" class="receipt-overlay" style="display:none;">
+    <div class="receipt-paper">
+      <div class="receipt-header">
+        <div style="font-weight:900;letter-spacing:0.08em;font-size:0.9rem;">COLLEGE CANTEEN</div>
+        <div style="font-size:0.7rem;color:#555;">MONAD TESTNET COUNTER POS</div>
+        <div class="receipt-token-big" id="receipt-token">#101</div>
+        <div style="font-weight:700;" id="receipt-slot-text">SLOT 12:00 RUSH</div>
+        <div style="font-size:0.72rem;color:#444;" id="receipt-date-text">DATE: 2026-10-27 12:15 PM</div>
+      </div>
+
+      <div style="font-size:0.75rem;display:flex;justify-content:space-between;margin-bottom:8px;">
+        <span>CUSTOMER: <strong id="receipt-cust-name">Walk-in</strong></span>
+        <span>ORDER: <strong id="receipt-order-id">#10001</strong></span>
+      </div>
+
+      <div class="receipt-lines" id="receipt-lines-container">
+        <!-- Lines -->
+      </div>
+
+      <div class="receipt-total-row">
+        <span>TOTAL PAID:</span>
+        <span id="receipt-total-amt">₹0.00</span>
+      </div>
+      <div style="display:flex;justify-content:space-between;font-size:0.75rem;color:#444;margin-top:4px;">
+        <span>TENDER: <strong id="receipt-tender-name">UPI</strong></span>
+        <span id="receipt-mon-equiv">0.00 MON</span>
+      </div>
+
+      <!-- Barcode simulation -->
+      <div style="text-align:center;margin:16px 0 10px 0;letter-spacing:0.2em;font-size:1.2rem;font-weight:900;">
+        ||| | |||| | ||||| | |||
+        <div style="font-size:0.65rem;letter-spacing:0.1em;font-weight:400;color:#666;" id="receipt-barcode-num">*10001-TOKEN-101*</div>
+      </div>
+
+      <div style="font-size:0.7rem;text-align:center;color:#666;border-top:1px dashed #777;padding-top:8px;">
+        Keep this token slip for food pickup at the kitchen counter.
+      </div>
+
+      <div style="display:flex;gap:8px;margin-top:14px;">
+        <button type="button" onclick="printReceipt()" style="flex:1;background:#000;color:#fff;border:none;padding:8px;font-size:0.8rem;border-radius:2px;">
+          🖨️ Print Slip
+        </button>
+        <button type="button" onclick="closeReceiptModal()" style="flex:1;background:#ddd;color:#000;border:none;padding:8px;font-size:0.8rem;border-radius:2px;">
+          Done
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    let activeTab = 'pos';
+    let configData = null;
+    let posCart = {}; // { [itemId]: { qty, item } }
+    let selectedTender = 'UPI';
+    let selectedCategory = 'all';
+    let lookupCurrentOrder = null;
+    let posCameraStream = null;
+
+    // Icons map for menu items
+    const ITEM_ICONS = {
+      1: '🥪', // Mumbai Vada Pav
+      2: '🫓', // Masala Dosa
+      3: '🥟', // Samosa Plate
+      4: '☕', // Masala Chai
+      5: '🥤', // Cold Coffee
+      6: '🍛', // Veg Biryani
+      7: '🍲'  // Idli Sambar
+    };
+
+    function switchTab(t) {
+      activeTab = t;
+      document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+      const activeBtn = document.getElementById('tab-btn-' + t);
+      if (activeBtn) activeBtn.classList.add('active');
+
+      ['pos', 'dashboard', 'counter', 'stock', 'ledger'].forEach(v => {
+        const el = document.getElementById('view-' + v);
+        if (el) el.style.display = (v === t ? (v === 'pos' ? 'grid' : 'flex') : 'none');
+      });
+
+      if (t === 'dashboard') loadAnalytics();
+      if (t === 'stock') loadStockList();
+      if (t === 'ledger') loadLedger();
+    }
+
+    // --- POS Cart Operations ---
+    function addToCart(itemId) {
+      const it = configData.items.find(x => x.id === itemId);
+      if (!it || !it.available) return;
+
+      if (!posCart[itemId]) {
+        posCart[itemId] = { qty: 1, item: it };
+      } else {
+        if (posCart[itemId].qty < 10) {
+          posCart[itemId].qty++;
+        }
+      }
+      renderPosCart();
+    }
+
+    function updateCartQty(itemId, delta) {
+      if (!posCart[itemId]) return;
+      posCart[itemId].qty += delta;
+      if (posCart[itemId].qty <= 0) {
+        delete posCart[itemId];
+      }
+      renderPosCart();
+    }
+
+    function removeCartLine(itemId) {
+      delete posCart[itemId];
+      renderPosCart();
+    }
+
+    function clearPosCart() {
+      posCart = {};
+      renderPosCart();
+    }
+
+    function renderPosCart() {
+      const container = document.getElementById('pos-cart-items');
+      const items = Object.values(posCart);
+
+      if (items.length === 0) {
+        container.innerHTML = `
+          <div style="text-align:center;padding:24px;color:var(--cream-dim);font-size:0.85rem;border:1px dashed var(--line-alt);">
+            Cart empty.<br>Tap menu items on the left to add.
+          </div>
+        `;
+        document.getElementById('pos-cart-portions').textContent = '0';
+        document.getElementById('pos-cart-total-inr').textContent = '₹0.00';
+        document.getElementById('pos-cart-total-mon').textContent = '0.000 MON';
+        return;
+      }
+
+      let totalPaise = 0;
+      let totalPortions = 0;
+
+      container.innerHTML = items.map(({ qty, item }) => {
+        const linePaise = item.pricePaise * qty;
+        totalPaise += linePaise;
+        totalPortions += qty;
+        const lineInr = (linePaise / 100).toFixed(2);
+
+        return `
+          <div style="display:flex;justify-content:space-between;align-items:center;background:var(--surface-elevated);border:1.5px solid #000;padding:8px 10px;border-radius:var(--radius-xs);">
+            <div style="flex:1;min-width:0;">
+              <div style="font-weight:700;font-size:0.85rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">
+                ${ITEM_ICONS[item.id] || '🍽️'} ${item.name}
+              </div>
+              <div style="font-family:var(--mono);font-size:0.75rem;color:var(--cream-dim);">
+                ₹${(item.pricePaise / 100).toFixed(2)} each
+              </div>
+            </div>
+            <div style="display:flex;align-items:center;gap:6px;">
+              <button type="button" class="stepper-btn" style="width:24px;height:24px;font-size:0.9rem;" onclick="updateCartQty(${item.id}, -1)">−</button>
+              <span style="font-family:var(--mono);font-size:0.85rem;min-width:18px;text-align:center;">${qty}</span>
+              <button type="button" class="stepper-btn" style="width:24px;height:24px;font-size:0.9rem;" onclick="updateCartQty(${item.id}, 1)">+</button>
+              <span style="font-family:var(--mono);font-weight:700;font-size:0.85rem;color:var(--acid-lime);min-width:55px;text-align:right;">₹${lineInr}</span>
+              <button type="button" onclick="removeCartLine(${item.id})" style="background:transparent;border:none;color:var(--bad);cursor:pointer;padding:2px 6px;font-size:0.85rem;">✕</button>
+            </div>
+          </div>
+        `;
+      }).join('');
+
+      document.getElementById('pos-cart-portions').textContent = totalPortions;
+      document.getElementById('pos-cart-total-inr').textContent = `₹${(totalPaise / 100).toFixed(2)}`;
+      document.getElementById('pos-cart-total-mon').textContent = `${(totalPaise / 100000).toFixed(3)} MON`;
+    }
+
+    function selectTender(t) {
+      selectedTender = t;
+      document.querySelectorAll('.tender-btn').forEach(b => b.classList.remove('active'));
+      const activeBtn = document.getElementById('tender-' + t.toLowerCase());
+      if (activeBtn) activeBtn.classList.add('active');
+    }
+
+    function setCustomerPreset(name) {
+      document.getElementById('pos-customer-name').value = name;
+    }
+
+    // --- Dispatch Counter Order ---
+    async function dispatchCounterOrder() {
+      const items = Object.values(posCart);
+      if (items.length === 0) {
+        alert('Please add at least one item to the cart.');
+        return;
+      }
+
+      const slotId = Number(document.getElementById('pos-slot-select').value || 0);
+      const customerName = document.getElementById('pos-customer-name').value.trim() || 'Walk-in Student';
+
+      const lines = items.map(({ qty, item }) => ({
+        itemId: item.id,
+        qty: qty,
+        pricePaise: item.pricePaise
+      }));
+
+      const btn = document.getElementById('btn-dispatch-order');
+      btn.disabled = true;
+      btn.textContent = 'Processing Order & Token...';
+
+      try {
+        const res = await fetch('/api/pos/order', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            slotId,
+            customerName,
+            lines,
+            paymentMethod: selectedTender
+          })
+        });
+
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'Failed to dispatch order');
+
+        // Show receipt modal
+        showReceiptModal({
+          orderId: data.orderId,
+          tokenNo: data.tokenNo,
+          customerName: customerName,
+          slotId: slotId,
+          totalPaise: data.totalPaise,
+          paymentMethod: selectedTender,
+          placedAt: data.placedAt,
+          lines: items
+        });
+
+        // Reset cart
+        clearPosCart();
+        loadAnalytics();
+      } catch (err) {
+        alert('POS Order Error: ' + err.message);
+      } finally {
+        btn.disabled = false;
+        btn.textContent = '⚡ ISSUE TOKEN & DISPATCH TO KITCHEN';
+      }
+    }
+
+    // --- Receipt Modal ---
+    function showReceiptModal(receipt) {
+      document.getElementById('receipt-token').textContent = `#${receipt.tokenNo}`;
+      const slot = configData.slots.find(s => s.id === receipt.slotId);
+      document.getElementById('receipt-slot-text').textContent = slot ? `SLOT ${slot.startLabel} RUSH` : `SLOT #${receipt.slotId}`;
+      document.getElementById('receipt-date-text').textContent = new Date(receipt.placedAt).toLocaleString();
+      document.getElementById('receipt-cust-name').textContent = receipt.customerName;
+      document.getElementById('receipt-order-id').textContent = `#${receipt.orderId}`;
+
+      const linesHtml = receipt.lines.map(({ qty, item }) => `
+        <div class="receipt-line-row">
+          <span>${qty}x ${item.name}</span>
+          <span>₹${((item.pricePaise * qty) / 100).toFixed(2)}</span>
+        </div>
+      `).join('');
+      document.getElementById('receipt-lines-container').innerHTML = linesHtml;
+
+      document.getElementById('receipt-total-amt').textContent = `₹${(receipt.totalPaise / 100).toFixed(2)}`;
+      document.getElementById('receipt-mon-equiv').textContent = `≈ ${(receipt.totalPaise / 100000).toFixed(3)} MON`;
+      document.getElementById('receipt-tender-name').textContent = receipt.paymentMethod;
+      document.getElementById('receipt-barcode-num').textContent = `*${receipt.orderId}-TOKEN-${receipt.tokenNo}*`;
+
+      document.getElementById('receipt-modal').style.display = 'flex';
+    }
+
+    function closeReceiptModal() {
+      document.getElementById('receipt-modal').style.display = 'none';
+    }
+
+    function printReceipt() {
+      window.print();
+    }
+
+    // --- Analytics Dashboard Loading ---
+    async function loadAnalytics() {
+      try {
+        const res = await fetch('/api/pos/analytics');
+        const data = await res.json();
+        if (!res.ok) return;
+
+        const s = data.summary;
+        document.getElementById('metric-total-orders').textContent = s.totalOrders;
+        document.getElementById('metric-preorders').textContent = s.preordersCount;
+        document.getElementById('metric-walkins').textContent = s.walkinsCount;
+        document.getElementById('metric-total-revenue').textContent = `₹${(s.totalPaise / 100).toFixed(2)}`;
+        document.getElementById('metric-mon-revenue').textContent = `≈ ${(s.totalPaise / 100000).toFixed(3)} MON equivalent`;
+        document.getElementById('metric-cooking').textContent = s.preparingCount;
+        document.getElementById('metric-ready').textContent = s.readyCount;
+        document.getElementById('metric-served').textContent = s.servedCount;
+        document.getElementById('metric-forfeited').textContent = s.forfeitedCount;
+        document.getElementById('metric-refund-exposure').textContent = `₹${(s.refundExposurePaise / 100).toFixed(2)}`;
+        document.getElementById('metric-refund-owed-count').textContent = s.refundOwedCount;
+        document.getElementById('metric-refund-paid-count').textContent = s.refundPaidCount;
+        document.getElementById('pos-tokens-count-pill').textContent = `Today's Tokens: ${s.totalOrders}`;
+
+        // Render slots
+        const slotsCont = document.getElementById('dashboard-slots-grid');
+        slotsCont.innerHTML = data.slots.map(sl => `
+          <div style="background:var(--surface-elevated);border:2px solid #000;border-radius:var(--radius-sm);padding:14px;box-shadow:3px 3px 0px #000;">
+            <div style="display:flex;justify-content:space-between;align-items:center;">
+              <span style="font-family:var(--mono);font-weight:800;font-size:1.1rem;color:var(--cream);">${sl.startLabel} Rush</span>
+              <span class="pill ${sl.percentPreorderFilled >= 100 ? 'bad' : 'ok'}">${sl.percentPreorderFilled}% Filled</span>
+            </div>
+            <div class="progress-bar" style="margin:10px 0 8px 0;height:8px;">
+              <div class="progress-fill ${sl.percentPreorderFilled >= 100 ? 'full' : ''}" style="width:${sl.percentPreorderFilled}%;"></div>
+            </div>
+            <div style="font-size:0.78rem;color:var(--cream-muted);display:flex;justify-content:space-between;">
+              <span>Pre-order: <strong>${sl.preorderPortions} / ${sl.preorderCap}</strong></span>
+              <span>Walk-up: <strong>${sl.walkinPortions}</strong></span>
+            </div>
+            <div style="font-size:0.75rem;color:var(--cream-dim);margin-top:4px;">
+              Total Physical Cap: ${sl.physicalCapacity} portions
+            </div>
+          </div>
+        `).join('');
+
+        // Funnel pills
+        document.getElementById('dashboard-funnel-pills').innerHTML = `
+          <span class="pill">Placed: ${s.placedCount}</span>
+          <span class="pill warn">Preparing: ${s.preparingCount}</span>
+          <span class="pill ok">Ready / Checked-In: ${s.readyCount}</span>
+          <span class="pill ok">Served: ${s.servedCount}</span>
+          <span class="pill bad">Forfeited: ${s.forfeitedCount}</span>
+          <span class="pill bad">Refund Owed: ${s.refundOwedCount}</span>
+          <span class="pill">Refund Paid: ${s.refundPaidCount}</span>
+        `;
+      } catch (e) {
+        console.warn('Analytics load error:', e);
+      }
+    }
+
+    // --- Redemption / Order Lookup ---
+    async function lookupOrder() {
+      const q = document.getElementById('lookup-token-input').value.trim();
+      if (!q) return alert('Enter a token number or order ID');
+
+      try {
+        const res = await fetch('/api/orders');
+        const orders = await res.json();
+        
+        // Find matching order
+        const found = orders.find(o => 
+          String(o.token_no) === q || 
+          String(o.order_id) === q || 
+          (o.student && o.student.toLowerCase() === q.toLowerCase())
+        );
+
+        if (!found) {
+          alert('No order found matching: ' + q);
+          document.getElementById('lookup-result-box').style.display = 'none';
+          return;
+        }
+
+        lookupCurrentOrder = found;
+        document.getElementById('lookup-result-box').style.display = 'block';
+        document.getElementById('lookup-token-badge').textContent = `TOKEN #${found.token_no}`;
+        document.getElementById('lookup-order-id').textContent = `Order #${found.order_id}`;
+        document.getElementById('lookup-student-addr').textContent = `Student: ${found.student || 'Walk-in'}`;
+        
+        const pill = document.getElementById('lookup-status-pill');
+        pill.textContent = found.status;
+        pill.className = 'pill ' + (found.status === 'Served' ? 'ok' : found.status === 'CheckedIn' ? 'live' : found.status === 'Forfeited' ? 'bad' : 'warn');
+
+        // Fetch lines
+        const detailRes = await fetch(`/api/orders/${found.order_id}`);
+        const detail = await detailRes.json();
+        const lines = detail.lines || [];
+        
+        document.getElementById('lookup-items-list').innerHTML = lines.map(l => `
+          <div style="display:flex;justify-content:space-between;font-size:0.85rem;margin:4px 0;">
+            <span>${l.qty}x ${configData?.items?.find(it => it.id === l.item_id)?.name || 'Item #' + l.item_id}</span>
+            <span style="font-family:var(--mono);">₹${((l.unit_price_paise * l.qty) / 100).toFixed(2)}</span>
+          </div>
+        `).join('') || '<div style="color:var(--cream-dim);">Items detail unavailable</div>';
+
+        // Update button states
+        const btnCheckin = document.getElementById('btn-manual-checkin');
+        const btnServe = document.getElementById('btn-manual-serve');
+        if (found.status === 'Served') {
+          btnCheckin.disabled = true;
+          btnServe.disabled = true;
+        } else if (found.status === 'CheckedIn') {
+          btnCheckin.disabled = true;
+          btnServe.disabled = false;
+        } else {
+          btnCheckin.disabled = false;
+          btnServe.disabled = false;
+        }
+      } catch (err) {
+        alert('Lookup error: ' + err.message);
+      }
+    }
+
+    async function executeLookupCheckIn() {
+      if (!lookupCurrentOrder) return;
+      try {
+        const chalRes = await fetch('/api/devices/challenge');
+        const chal = await chalRes.json();
+
+        const res = await fetch('/api/orders/check-in', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            orderId: lookupCurrentOrder.order_id,
+            challenge: chal,
+            deviceSig: chal.deviceSig,
+            studentSig: chal.deviceSig // offline session sig fallback
+          })
+        });
+        if (res.ok) {
+          alert(`Order #${lookupCurrentOrder.order_id} marked CHECKED IN!`);
+          lookupOrder();
+        } else {
+          const err = await res.json();
+          alert('Check-in error: ' + (err.error || 'Failed'));
+        }
+      } catch (e) {
+        alert('Check-in error: ' + e.message);
+      }
+    }
+
+    async function executeLookupServe() {
+      if (!lookupCurrentOrder) return;
+      try {
+        const res = await fetch('/api/orders/serve', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ orderId: lookupCurrentOrder.order_id })
+        });
+        if (res.ok) {
+          alert(`Order #${lookupCurrentOrder.order_id} marked SERVED on-chain!`);
+          lookupOrder();
+          loadAnalytics();
+        } else {
+          const err = await res.json();
+          alert('Serve error: ' + (err.error || 'Failed'));
+        }
+      } catch (e) {
+        alert('Serve error: ' + e.message);
+      }
+    }
+
+    // --- POS Camera Scanner ---
+    async function startPosScanner() {
+      const placeholder = document.getElementById('pos-scanner-placeholder');
+      placeholder.innerHTML = 'Activating camera...';
+      const video = document.getElementById('pos-scanner-video');
+      posCameraStream = await QREngine.startScanner(
+        video,
+        (qrText) => {
+          handlePosScanResult(qrText);
+        },
+        (err) => {
+          placeholder.innerHTML = `<span style="color:var(--bad);">Camera error: ${err.message}</span>`;
+        }
+      );
+      if (posCameraStream) {
+        placeholder.style.display = 'none';
+      }
+    }
+
+    async function handlePosScanResult(qrText) {
+      try {
+        const data = JSON.parse(qrText);
+        const fb = document.getElementById('pos-scan-feedback');
+        fb.style.display = 'block';
+        fb.innerHTML = `<strong>Scanned Token:</strong> Order #${data.orderId || '?'}`;
+
+        const res = await fetch('/api/orders/check-in', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(data)
+        });
+        if (res.ok) {
+          fb.style.background = 'rgba(0, 255, 136, 0.2)';
+          fb.style.borderColor = 'var(--ok)';
+          fb.innerHTML = `✅ <strong>CHECK-IN VERIFIED!</strong> Order #${data.orderId} ready to serve.`;
+        } else {
+          const err = await res.json();
+          fb.style.background = 'rgba(255, 0, 85, 0.2)';
+          fb.style.borderColor = 'var(--bad)';
+          fb.innerHTML = `⚠️ <strong>CHECK-IN REVERTED:</strong> ${err.error || 'Invalid signature'}`;
+        }
+      } catch (e) {
+        // Not a JSON QR
+      }
+    }
+
+    // --- Stock / Menu Availability ---
+    async function loadStockList() {
+      const res = await fetch('/api/config');
+      configData = await res.json();
+      const cont = document.getElementById('pos-stock-container');
+
+      cont.innerHTML = configData.items.map(it => `
+        <div class="item-row" style="background:var(--surface);">
+          <div class="item-info">
+            <span class="item-name">${ITEM_ICONS[it.id] || '🍽️'} ${it.name}</span>
+            <span class="item-price">₹${(it.pricePaise / 100).toFixed(2)} · ${(it.pricePaise / 100000).toFixed(3)} MON</span>
+          </div>
+          <div>
+            <button class="${it.available ? 'secondary' : ''}" style="${it.available ? '' : 'background:var(--bad);'}" onclick="toggleStock(${it.id}, ${!it.available})">
+              ${it.available ? 'Mark Sold Out' : 'Turn Back On'}
+            </button>
+          </div>
+        </div>
+      `).join('');
+    }
+
+    async function toggleStock(itemId, available) {
+      if (!confirm(`Mark item ${available ? 'AVAILABLE' : 'SOLD OUT'} on Monad smart contract?`)) return;
+      const res = await fetch('/api/admin/availability', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ itemId, available })
+      });
+      if (res.ok) {
+        alert('Stock status updated on-chain!');
+        await refreshPosData();
+        loadStockList();
+      } else {
+        const err = await res.json();
+        alert('Update error: ' + (err.error || 'Failed'));
+      }
+    }
+
+    // --- Orders Ledger ---
+    async function loadLedger() {
+      const slotFilter = document.getElementById('ledger-slot-filter').value;
+      const statusFilter = document.getElementById('ledger-status-filter').value;
+
+      let url = '/api/kds/queue?';
+      if (slotFilter) url += `slotId=${slotFilter}&`;
+      const res = await fetch(url);
+      let orders = await res.json();
+
+      if (statusFilter) {
+        orders = orders.filter(o => o.status === statusFilter);
+      }
+
+      const tbody = document.getElementById('ledger-tbody');
+      if (orders.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;padding:20px;color:var(--cream-dim);">No orders found.</td></tr>';
+        return;
+      }
+
+      tbody.innerHTML = orders.map(o => {
+        const linesStr = (o.lines || []).map(l => `${l.qty}x ${configData?.items?.find(it => it.id === l.itemId)?.name || 'Item #' + l.itemId}`).join(', ');
+        const slot = configData?.slots?.find(s => s.id === o.slot_id);
+        const slotText = slot ? slot.startLabel : `Slot ${o.slot_id}`;
+
+        return `
+          <tr>
+            <td style="font-family:var(--mono);font-weight:900;color:var(--acid-lime);">#${o.token_no}</td>
+            <td style="font-family:var(--mono);color:var(--cream-dim);">#${o.order_id}</td>
+            <td><span class="pill" style="font-size:0.65rem;">${o.order_source || 'preorder'}</span></td>
+            <td>${slotText}</td>
+            <td style="max-width:200px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;" title="${linesStr}">${linesStr || 'Pre-order'}</td>
+            <td style="font-family:var(--mono);font-weight:700;">₹${((o.total_paise || 0) / 100).toFixed(2)}</td>
+            <td><span class="pill ${o.status === 'Served' ? 'ok' : o.status === 'CheckedIn' ? 'live' : o.status === 'Forfeited' ? 'bad' : 'warn'}">${o.status}</span></td>
+            <td>
+              <button class="quiet" style="padding:4px 8px;font-size:0.75rem;" onclick="reprintSlip(${o.order_id}, ${o.token_no}, ${o.slot_id}, ${o.total_paise || 0})">Slip</button>
+            </td>
+          </tr>
+        `;
+      }).join('');
+    }
+
+    function reprintSlip(orderId, tokenNo, slotId, totalPaise) {
+      showReceiptModal({
+        orderId,
+        tokenNo,
+        customerName: 'Student',
+        slotId,
+        totalPaise,
+        paymentMethod: 'Verified',
+        placedAt: new Date().toISOString(),
+        lines: []
+      });
+    }
+
+    // --- Search & Category Filtering ---
+    function filterCategory(cat, btn) {
+      selectedCategory = cat;
+      document.querySelectorAll('#pos-cat-filters button').forEach(b => b.classList.remove('active'));
+      if (btn) btn.classList.add('active');
+      renderMenuItems();
+    }
+
+    function filterSearch(term) {
+      renderMenuItems(term.toLowerCase());
+    }
+
+    function renderMenuItems(searchQuery = '') {
+      if (!configData || !configData.items) return;
+      const cont = document.getElementById('pos-items-grid');
+
+      const filtered = configData.items.filter(it => {
+        if (searchQuery && !it.name.toLowerCase().includes(searchQuery)) return false;
+        if (selectedCategory === 'snacks' && it.id > 3) return false;
+        if (selectedCategory === 'meals' && it.id !== 2 && it.id !== 6 && it.id !== 7) return false;
+        if (selectedCategory === 'drinks' && it.id !== 4 && it.id !== 5) return false;
+        return true;
+      });
+
+      cont.innerHTML = filtered.map(it => `
+        <div class="pos-food-card ${it.available ? '' : 'sold-out'}" onclick="addToCart(${it.id})">
+          <div style="display:flex;justify-content:space-between;align-items:flex-start;">
+            <span class="pos-food-icon">${ITEM_ICONS[it.id] || '🍽️'}</span>
+            <span class="pill ${it.available ? 'ok' : 'bad'}" style="font-size:0.65rem;">
+              ${it.available ? 'IN STOCK' : 'SOLD OUT'}
+            </span>
+          </div>
+          <div>
+            <div class="pos-food-name">${it.name}</div>
+            <div class="pos-food-price">₹${(it.pricePaise / 100).toFixed(2)}</div>
+            <div style="font-family:var(--mono);font-size:0.7rem;color:var(--cream-dim);">
+              ${(it.pricePaise / 100000).toFixed(3)} MON
+            </div>
+          </div>
+        </div>
+      `).join('');
+    }
+
+    async function refreshPosData() {
+      const cfgRes = await fetch('/api/config');
+      configData = await cfgRes.json();
+
+      // Populate slot select
+      const sel = document.getElementById('pos-slot-select');
+      const ledgerSel = document.getElementById('ledger-slot-filter');
+      sel.innerHTML = configData.slots.map(s => `
+        <option value="${s.id}">${s.startLabel} Rush (Remaining Cap: ${s.remaining} portions)</option>
+      `).join('');
+
+      ledgerSel.innerHTML = '<option value="">All Slots</option>' + configData.slots.map(s => `
+        <option value="${s.id}">Slot ${s.startLabel}</option>
+      `).join('');
+
+      renderMenuItems();
+      loadAnalytics();
+    }
+
+    window.addEventListener('load', () => {
+      refreshPosData();
+    });
+  </script>
+</body>
+</html>

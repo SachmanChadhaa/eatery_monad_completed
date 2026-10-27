@@ -37,6 +37,8 @@ async function main() {
   }
 
   const studentHtml = readStatic('student.html') ?? ''
+  const loginHtml = readStatic('login.html') ?? ''
+  const posHtml = readStatic('pos.html') ?? ''
   const tabletHtml = readStatic('tablet.html') ?? ''
   const setupHtml = readStatic('setup.html') ?? ''
   const stylesCss = readStatic('styles.css') ?? ''
@@ -60,12 +62,22 @@ async function main() {
 
       // 2. Static files & Web views
       if (req.method === 'GET') {
+        if (p === '/login' || p === '/login.html' || p === '/auth') {
+          res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' })
+          res.end(loginHtml)
+          return
+        }
         if (p === '/' || p === '/student' || p === '/index.html') {
           res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' })
           res.end(studentHtml)
           return
         }
-        if (p === '/tablet') {
+        if (p === '/pos' || p === '/canteen' || p === '/pos.html') {
+          res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' })
+          res.end(posHtml)
+          return
+        }
+        if (p === '/tablet' || p === '/kitchen' || p === '/kds' || p === '/tablet.html') {
           res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' })
           res.end(tabletHtml)
           return

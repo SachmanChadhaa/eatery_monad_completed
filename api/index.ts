@@ -51,7 +51,10 @@ export default async function handler(req: IncomingMessage, res: ServerResponse)
       if (p === '/' || p === '/student' || p === '/index.html') {
         if (serveFile([resolve(publicDir, 'index.html'), resolve(staticDir, 'student.html')], 'text/html; charset=utf-8')) return
       }
-      if (p === '/tablet') {
+      if (p === '/pos' || p === '/canteen' || p === '/pos.html') {
+        if (serveFile([resolve(publicDir, 'pos.html'), resolve(staticDir, 'pos.html')], 'text/html; charset=utf-8')) return
+      }
+      if (p === '/tablet' || p === '/kitchen' || p === '/kds' || p === '/tablet.html') {
         if (serveFile([resolve(publicDir, 'tablet.html'), resolve(staticDir, 'tablet.html')], 'text/html; charset=utf-8')) return
       }
       if (p === '/setup') {
