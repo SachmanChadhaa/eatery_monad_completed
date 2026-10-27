@@ -33,6 +33,10 @@
       <button class="nav-btn" id="tab-btn-stock" onclick="switchTabletTab('stock')">Sold Out</button>
       <a href="/pos" class="nav-btn" style="color:var(--acid-lime);border:1px solid var(--acid-lime);">Canteen POS ↗</a>
       <a href="/" class="nav-btn" style="color:var(--electric-cyan);">Student Menu ↗</a>
+      <div style="display:flex;align-items:center;gap:8px;margin-left:4px;">
+        <span class="pill warn" id="kds-user-badge" style="font-size:0.72rem;">Kitchen Chef</span>
+        <a href="/login?role=kds" class="nav-btn" style="color:var(--bad);border:1px solid var(--bad);padding:4px 8px;font-size:0.75rem;">Switch Role ⇦</a>
+      </div>
     </div>
 
     <!-- Quick Tablet Controls -->
@@ -796,6 +800,12 @@
     }
 
     window.addEventListener('load', async () => {
+      try {
+        const sess = JSON.parse(localStorage.getItem('canteenpos_auth_session') || '{}');
+        if (sess.user && sess.user.name) {
+          document.getElementById('kds-user-badge').textContent = sess.user.name.split('(')[0].trim();
+        }
+      } catch (_) {}
       const cfgRes = await fetch('/api/config');
       configData = await cfgRes.json();
       for (const it of configData.items) itemsMap[it.id] = it.name;

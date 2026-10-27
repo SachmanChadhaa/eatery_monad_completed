@@ -33,6 +33,10 @@
       <button class="nav-btn" id="tab-btn-ledger" onclick="switchTab('ledger')">Orders Ledger</button>
       <a href="/tablet" class="nav-btn" style="color:var(--acid-lime);border:1px solid var(--acid-lime);">Kitchen KDS ↗</a>
       <a href="/" class="nav-btn" style="color:var(--electric-cyan);">Student Menu ↗</a>
+      <div style="display:flex;align-items:center;gap:8px;margin-left:4px;">
+        <span class="pill ok" id="pos-user-badge" style="font-size:0.72rem;">POS Cashier</span>
+        <a href="/login?role=pos" class="nav-btn" style="color:var(--bad);border:1px solid var(--bad);padding:4px 8px;font-size:0.75rem;">Switch Role ⇦</a>
+      </div>
     </div>
   </header>
 
@@ -982,6 +986,12 @@
     }
 
     window.addEventListener('load', () => {
+      try {
+        const sess = JSON.parse(localStorage.getItem('canteenpos_auth_session') || '{}');
+        if (sess.user && sess.user.name) {
+          document.getElementById('pos-user-badge').textContent = sess.user.name.split('(')[0].trim();
+        }
+      } catch (_) {}
       refreshPosData();
     });
   </script>
