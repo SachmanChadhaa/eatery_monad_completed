@@ -8,6 +8,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:ital,wght@0,400;0,600;0,700;0,800;1,700&family=Space+Grotesk:wght@500;600;700;800;900&family=Syne:wght@700;800;900&display=swap">
   <link rel="stylesheet" href="/styles.css">
+  <script src="/lucide.js"></script>
   <script src="/noble-secp256k1.js"></script>
   <script src="/jsqr.js"></script>
   <script src="/qr-engine.js"></script>
@@ -27,20 +28,25 @@
     </div>
     <div style="display:flex;align-items:center;gap:12px;">
       <button id="btn-metamask" onclick="connectMetaMask()" style="display:inline-flex;align-items:center;gap:8px;background:var(--violent-neon);color:#000000;border:2.5px solid #000000;border-radius:var(--radius-sm);padding:8px 16px;font-size:0.84rem;font-weight:800;box-shadow:3px 3px 0px #000000;cursor:pointer;">
-        <span>🦊</span> Connect MetaMask
+        <i data-lucide="wallet" class="lucide-sm"></i> Connect MetaMask
       </button>
       <div id="wallet-pill" style="display:none;align-items:center;gap:10px;background:var(--surface-elevated);border:2.5px solid #000000;border-radius:var(--radius-sm);padding:6px 14px;font-family:var(--mono);font-size:0.8rem;box-shadow:3px 3px 0px #000000;">
         <span id="wallet-mon-bal" style="color:var(--acid-lime);font-weight:800;">0.00 MON</span>
         <span id="wallet-address-pill" style="color:var(--violent-light);font-weight:700;">0x...</span>
       </div>
       <div class="nav-links">
-        <button class="nav-btn active" id="tab-order" onclick="switchView('order')">Menu</button>
-        <button class="nav-btn" id="tab-checkin" onclick="switchView('checkin')">Check-in</button>
-        <button class="nav-btn" id="tab-orders" onclick="switchView('orders')">Orders</button>
-        <button class="nav-btn" id="tab-settings" onclick="switchView('settings')">Settings</button>
-        <a href="/pos" class="nav-btn" style="color:var(--acid-lime);border:1px solid var(--acid-lime);">POS ↗</a>
-        <a href="/tablet" class="nav-btn" style="color:var(--hazard-orange);border:1px solid var(--hazard-orange);">KDS ↗</a>
-        <a href="/login" class="nav-btn" style="color:var(--violent-light);border:1px solid var(--violent-light);padding:4px 8px;font-size:0.75rem;">Login ⇦</a>
+        <button class="nav-btn active" id="tab-order" onclick="switchView('order')"><i data-lucide="utensils" class="lucide-sm"></i> Menu</button>
+        <button class="nav-btn" id="tab-checkin" onclick="switchView('checkin')"><i data-lucide="qr-code" class="lucide-sm"></i> Check-in</button>
+        <button class="nav-btn" id="tab-orders" onclick="switchView('orders')"><i data-lucide="clock" class="lucide-sm"></i> Orders</button>
+        <button class="nav-btn" id="tab-settings" onclick="switchView('settings')"><i data-lucide="key" class="lucide-sm"></i> Keys</button>
+        <div style="display:flex;align-items:center;gap:8px;margin-left:8px;">
+          <span class="pill ok" id="student-user-badge" style="font-size:0.75rem;display:inline-flex;align-items:center;gap:6px;">
+            <i data-lucide="user" class="lucide-sm"></i> <span id="student-user-name">Student</span>
+          </span>
+          <button type="button" onclick="logoutSession()" class="nav-btn" style="color:var(--bad);border:1.5px solid var(--bad);padding:4px 10px;font-size:0.75rem;cursor:pointer;display:inline-flex;align-items:center;gap:4px;">
+            <i data-lucide="log-out" class="lucide-sm"></i> Log Out
+          </button>
+        </div>
       </div>
     </div>
   </header>
@@ -67,7 +73,9 @@
       <!-- Compulsory MetaMask Banner -->
       <div id="metamask-required-card" style="border:1px dashed var(--peach);background:rgba(255, 179, 138, 0.08);border-radius:var(--radius-md);padding:14px 18px;margin-bottom:14px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;">
         <div>
-          <div style="font-weight:600;color:var(--peach);font-size:0.95rem;display:flex;align-items:center;gap:6px;">🦊 MetaMask Wallet Required</div>
+          <div style="font-weight:600;color:var(--peach);font-size:0.95rem;display:flex;align-items:center;gap:6px;">
+            <i data-lucide="wallet" class="lucide-sm"></i> MetaMask Wallet Required
+          </div>
           <div style="font-size:0.8rem;color:var(--cream-muted);margin-top:2px;">Connect your MetaMask wallet on Monad Testnet to place pre-orders with testnet MON.</div>
         </div>
         <button type="button" onclick="connectMetaMask()" style="padding:8px 16px;font-size:0.85rem;background:var(--crail);border-radius:var(--radius-sm);cursor:pointer;">Connect Wallet</button>
@@ -136,7 +144,7 @@
 
       <!-- TABLE ASSIGNED SUCCESS CARD (Displayed on successful check-in) -->
       <div id="table-assigned-card" style="display:none;background:rgba(85, 239, 196, 0.08);border:2px solid var(--ok);border-radius:var(--radius-md);padding:20px;text-align:center;margin-bottom:16px;">
-        <div style="font-size:2rem;margin-bottom:4px;">🎉</div>
+        <div style="margin-bottom:8px;"><i data-lucide="check-circle" class="lucide-xl" style="color:var(--ok);"></i></div>
         <h3 style="color:var(--ok);margin:0 0 6px 0;font-size:1.3rem;">Counter Check-In Verified!</h3>
         <div style="font-size:0.92rem;color:var(--cream);margin-bottom:12px;">Cryptographic proof of presence confirmed on Monad Testnet.</div>
         
@@ -154,38 +162,12 @@
         </div>
       </div>
 
-      <!-- COUNTER QR WIDGET (Dummy / Live Counter Tablet Challenge QR) -->
-      <div id="counter-qr-widget" style="background:var(--surface-elevated);border:1px solid var(--peach);border-radius:var(--radius-md);padding:18px;text-align:center;margin-bottom:16px;">
-        <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:8px;">
-          <div style="text-align:left;">
-            <div style="font-weight:700;color:var(--peach);font-size:1rem;display:flex;align-items:center;gap:6px;">
-              <span>🍽️</span> Canteen Counter QR (Table Check-In)
-            </div>
-            <div style="font-size:0.8rem;color:var(--cream-muted);margin-top:2px;">
-              Scan this QR with a phone, or click below to simulate standing at Counter #1.
-            </div>
-          </div>
-          <span class="pill" id="counter-qr-meta" style="font-family:var(--mono);font-size:0.75rem;">Counter #1 · Table #4</span>
-        </div>
-
-        <div id="counter-qr-display" style="display:flex;justify-content:center;margin:14px 0;"></div>
-
-        <div style="display:flex;gap:10px;justify-content:center;flex-wrap:wrap;margin-top:8px;">
-          <button type="button" onclick="scanCurrentCounterQr()" style="background:var(--crail);color:var(--cream);font-weight:700;padding:10px 20px;border-radius:var(--radius-sm);cursor:pointer;display:inline-flex;align-items:center;gap:8px;box-shadow:var(--shadow-sm);">
-            <span>⚡</span> Check In at Counter & Assign Table
-          </button>
-          <button type="button" class="secondary" onclick="loadLiveCounterQr()" style="padding:10px 16px;">
-            🔄 Refresh Challenge
-          </button>
-        </div>
-      </div>
-
       <!-- CAMERA SCANNER BOX -->
       <div style="margin-bottom:8px;">
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
           <label style="font-size:0.8rem;color:var(--cream-dim);text-transform:uppercase;letter-spacing:0.08em;font-weight:600;">Or Scan with Camera / Upload</label>
-          <button type="button" class="quiet" onclick="document.getElementById('qr-file-input').click()" style="font-size:0.78rem;padding:4px 10px;border:1px solid var(--line);">
-            📁 Upload QR Photo
+          <button type="button" class="quiet" onclick="document.getElementById('qr-file-input').click()" style="font-size:0.78rem;padding:4px 10px;border:1px solid var(--line);display:inline-flex;align-items:center;gap:6px;">
+            <i data-lucide="upload" class="lucide-sm"></i> Upload QR Photo
           </button>
           <input type="file" id="qr-file-input" accept="image/*" style="display:none;" onchange="handleQrFileUpload(event)">
         </div>
@@ -207,7 +189,9 @@
           <textarea id="manual-challenge-input" rows="3" placeholder='Paste full Challenge JSON here: {"v":1,"device":"0x...","slotId":0,"nonce":"0x...","timestamp":...,"deviceSig":"..."}' style="width:100%;background:var(--surface-elevated);color:var(--cream);border:1px solid var(--line);border-radius:var(--radius-sm);padding:8px;font-family:var(--mono);font-size:0.75rem;"></textarea>
           <div style="display:flex;gap:8px;">
             <button class="secondary" style="flex:1;" onclick="processManualChallenge()">Sign Pasted Challenge</button>
-            <button type="button" class="quiet" style="flex:1;border:1px solid var(--line);" onclick="fetchLiveCounterChallenge()">⚡ Use Live Tablet Challenge</button>
+            <button type="button" class="quiet" style="flex:1;border:1px solid var(--line);display:inline-flex;align-items:center;justify-content:center;gap:6px;" onclick="fetchLiveCounterChallenge()">
+              <i data-lucide="zap" class="lucide-sm"></i> Use Live Counter Challenge
+            </button>
           </div>
         </div>
       </details>
@@ -266,6 +250,37 @@
   </main>
 
   <script>
+    function enforceStudentAuth() {
+      try {
+        const sessionRaw = localStorage.getItem('canteenpos_auth_session');
+        if (!sessionRaw) {
+          window.location.replace('/login?role=student');
+          return null;
+        }
+        const session = JSON.parse(sessionRaw);
+        if (!session || (session.role !== 'student' && session.role !== 'owner')) {
+          window.location.replace('/login?role=student');
+          return null;
+        }
+        return session;
+      } catch (e) {
+        window.location.replace('/login?role=student');
+        return null;
+      }
+    }
+    const currentAuthSession = enforceStudentAuth();
+
+    function logoutSession() {
+      localStorage.removeItem('canteenpos_auth_session');
+      window.location.href = '/login?role=student';
+    }
+
+    function renderIcons() {
+      if (window.lucide && typeof window.lucide.createIcons === 'function') {
+        window.lucide.createIcons();
+      }
+    }
+
     // --- State & Client Crypto ---
     const IST_OFFSET = 19800;
     let configData = null;
@@ -495,7 +510,7 @@
       });
 
       if (viewName === 'orders') loadMyOrders();
-      if (viewName === 'checkin') loadLiveCounterQr();
+      renderIcons();
       if (viewName !== 'checkin' && cameraStream) {
         cameraStream.stop();
         cameraStream = null;
@@ -788,10 +803,10 @@
       }
 
       if (!connectedStudentAddress) {
-        msgEl.textContent = '🦊 Connecting MetaMask (Compulsory)...';
+        msgEl.textContent = 'Connecting MetaMask (Compulsory)...';
         const connected = await connectMetaMask();
         if (!connected || !connectedStudentAddress) {
-          msgEl.textContent = '⚠️ MetaMask connection is compulsory for all students.';
+          msgEl.textContent = 'MetaMask connection is compulsory for all students.';
           alert('MetaMask connection is compulsory. Please connect your MetaMask wallet on Monad Testnet to place pre-orders.');
           return;
         }
@@ -801,7 +816,7 @@
       try {
         const chainId = await window.ethereum.request({ method: 'eth_chainId' });
         if (chainId !== '0x279f') {
-          msgEl.textContent = '🦊 Switching to Monad Testnet in MetaMask...';
+          msgEl.textContent = 'Switching to Monad Testnet in MetaMask...';
           await window.ethereum.request({
             method: 'wallet_switchEthereumChain',
             params: [{ chainId: '0x279f' }]
@@ -875,7 +890,7 @@
       };
 
       // 3. Trigger MetaMask Popup: Sign EIP-712 OrderIntent
-      msgEl.textContent = '🦊 Please sign Pre-Order in MetaMask popup...';
+      msgEl.textContent = 'Please sign Pre-Order in MetaMask popup...';
       let studentSig = null;
 
       const typedData = JSON.stringify({
@@ -949,7 +964,7 @@
       const intentData = await intentRes.json();
 
       // 5. Trigger MetaMask Popup: Pay Testnet MON
-      msgEl.textContent = '🦊 Please confirm MON payment in MetaMask popup...';
+      msgEl.textContent = 'Please confirm MON payment in MetaMask popup...';
       const monWei = BigInt(totalPaise) * 10000000000000n; // 1 paise = 10^13 wei -> 1500 paise = 0.015 MON = 1.5e16 wei
       const monWeiHex = '0x' + monWei.toString(16);
       const recipientVault = (configData && configData.vault) || (configData && configData.contract) || '0x83edd38e28e43c608c0d30b60a03adac1eacbc33';
@@ -1022,7 +1037,6 @@
 
     function openCheckInForCurrentOrder() {
       switchView('checkin');
-      loadLiveCounterQr();
     }
 
     function viewTxOnExplorer() {
@@ -1032,86 +1046,22 @@
     }
 
     // --- Counter Check-In Flow (Spec 7.3) ---
-    let activeCounterChallenge = null;
-
-    async function loadLiveCounterQr() {
-      const container = document.getElementById('counter-qr-display');
-      if (!container) return;
-      container.innerHTML = '<div style="color:var(--cream-dim);padding:20px;font-size:0.85rem;">Generating Canteen Counter QR...</div>';
-
-      let chal = null;
-      try {
-        const res = await fetch('/api/devices/challenge');
-        if (res.ok) {
-          chal = await res.json();
-        }
-      } catch (e) {
-        console.warn('Live counter challenge fetch note:', e);
-      }
-
-      if (!chal) {
-        // Offline fallback challenge signed by DEMO_DEVICE_PK
-        const now = Math.floor(Date.now() / 1000);
-        chal = {
-          v: 1,
-          device: '0x6a09e37b7b8c2247f93f6363d7eb595c4024b408',
-          slotId: 0,
-          nonce: '0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef',
-          timestamp: now,
-          counter: 'Pickup Counter #1',
-          table: 'Table #4 (Zone A)',
-          deviceSig: '0x35661b6ec260dfc9497e69f835cbfe170bc0632599c9d5e305e94b2abceca4f10356c38b29ff63b519e4963503aa30953ee2c6bb75c589eef39281518f8fa7e41c'
-        };
-      }
-
-      activeCounterChallenge = chal;
-      if (!activeCounterChallenge.counter) activeCounterChallenge.counter = 'Pickup Counter #1';
-      if (!activeCounterChallenge.table) activeCounterChallenge.table = 'Table #4 (Zone A)';
-
-      const meta = document.getElementById('counter-qr-meta');
-      if (meta) {
-        meta.textContent = `${activeCounterChallenge.counter} · ${activeCounterChallenge.table}`;
-      }
-
-      try {
-        if (window.QREngine && typeof window.QREngine.renderSvg === 'function') {
-          const svg = window.QREngine.renderSvg(JSON.stringify(activeCounterChallenge), {
-            size: 210,
-            dark: '#14100E',
-            light: '#FFFFFF'
-          });
-          container.innerHTML = `<div style="background:#FFFFFF;padding:12px;border-radius:14px;display:inline-block;box-shadow:0 4px 16px rgba(0,0,0,0.35);">${svg}</div>`;
-        } else {
-          container.innerHTML = '<div style="color:var(--peach);padding:14px;font-size:0.85rem;">QR Engine loaded. Click Refresh Challenge to display.</div>';
-        }
-      } catch (err) {
-        console.error('Failed to render counter QR SVG:', err);
-        container.innerHTML = `<div style="color:var(--bad);padding:14px;font-size:0.85rem;">Error rendering QR: ${err.message}</div>`;
-      }
-    }
-
-    async function scanCurrentCounterQr() {
-      if (!activeCounterChallenge) {
-        await loadLiveCounterQr();
-      }
-      if (activeCounterChallenge) {
-        handleScannedChallenge(activeCounterChallenge);
-      }
-    }
-
     async function activateCameraScanner() {
       const placeholder = document.getElementById('scanner-placeholder');
       if (placeholder) {
         placeholder.innerHTML = `
-          <div style="font-size:0.95rem;color:var(--peach);font-weight:600;margin-bottom:6px;">📸 Requesting Camera Access...</div>
+          <div style="font-size:0.95rem;color:var(--peach);font-weight:700;margin-bottom:6px;display:flex;align-items:center;justify-content:center;gap:6px;">
+            <i data-lucide="camera" class="lucide-sm"></i> Requesting Camera Access...
+          </div>
           <div style="font-size:0.8rem;color:var(--cream-dim);max-width:280px;margin:0 auto 10px auto;">
             Please click <b>Allow</b> in your browser popup.
           </div>
           <div style="font-size:0.75rem;color:var(--cream-muted);">
-            If no popup appears, check the 🔒 lock icon in the address bar.
+            If no popup appears, check the camera permission icon in the address bar.
           </div>
         `;
         placeholder.style.display = 'block';
+        renderIcons();
       }
       const video = document.getElementById('scanner-video');
       if (!video) return;
@@ -1129,23 +1079,32 @@
           (err) => {
             if (placeholder) {
               placeholder.innerHTML = `
-                <div style="color:var(--bad);font-weight:700;font-size:0.95rem;margin-bottom:6px;">⚠️ Camera Access Unavailable</div>
+                <div style="color:var(--bad);font-weight:700;font-size:0.95rem;margin-bottom:6px;display:flex;align-items:center;justify-content:center;gap:6px;">
+                  <i data-lucide="alert-triangle" class="lucide-sm"></i> Camera Access Unavailable
+                </div>
                 <div style="font-size:0.8rem;color:var(--cream-dim);max-width:320px;margin:0 auto 12px auto;line-height:1.4;">
                   ${err.message}
                 </div>
                 <div style="background:rgba(255,179,138,0.08);border:1px dashed var(--line);border-radius:var(--radius-sm);padding:8px;font-size:0.75rem;color:var(--cream-muted);max-width:320px;margin:0 auto 12px auto;text-align:left;">
-                  <b>💡 How to enable in Chrome:</b><br>
-                  1. Click the <b>🔒 lock</b> or <b>camera icon</b> in the top URL bar.<br>
+                  <b>How to enable in Chrome:</b><br>
+                  1. Click the lock or camera icon in the top URL bar.<br>
                   2. Set <b>Camera</b> to <b>Allow</b>.<br>
                   3. Click Try Again below.
                 </div>
                 <div style="display:flex;gap:8px;justify-content:center;flex-wrap:wrap;">
-                  <button onclick="activateCameraScanner()" style="padding:6px 14px;font-size:0.8rem;">🔄 Try Again</button>
-                  <button class="secondary" onclick="document.getElementById('qr-file-input').click()" style="padding:6px 14px;font-size:0.8rem;">📁 Upload QR Image</button>
-                  <button class="quiet" onclick="scanCurrentCounterQr()" style="padding:6px 14px;font-size:0.8rem;border:1px solid var(--line);">⚡ Check In at Counter</button>
+                  <button onclick="activateCameraScanner()" style="padding:6px 14px;font-size:0.8rem;display:inline-flex;align-items:center;gap:4px;">
+                    <i data-lucide="rotate-cw" class="lucide-sm"></i> Try Again
+                  </button>
+                  <button class="secondary" onclick="document.getElementById('qr-file-input').click()" style="padding:6px 14px;font-size:0.8rem;display:inline-flex;align-items:center;gap:4px;">
+                    <i data-lucide="upload" class="lucide-sm"></i> Upload QR Image
+                  </button>
+                  <button class="quiet" onclick="fetchLiveCounterChallenge()" style="padding:6px 14px;font-size:0.8rem;border:1px solid var(--line);display:inline-flex;align-items:center;gap:4px;">
+                    <i data-lucide="zap" class="lucide-sm"></i> Use Live Counter Challenge
+                  </button>
                 </div>
               `;
               placeholder.style.display = 'block';
+              renderIcons();
             }
           }
         );
@@ -1155,15 +1114,24 @@
       } catch (err) {
         if (placeholder) {
           placeholder.innerHTML = `
-            <div style="color:var(--bad);font-weight:700;font-size:0.95rem;margin-bottom:6px;">⚠️ Camera Error</div>
+            <div style="color:var(--bad);font-weight:700;font-size:0.95rem;margin-bottom:6px;display:flex;align-items:center;justify-content:center;gap:6px;">
+              <i data-lucide="alert-triangle" class="lucide-sm"></i> Camera Error
+            </div>
             <div style="font-size:0.8rem;color:var(--cream-dim);max-width:320px;margin:0 auto 12px auto;">${err.message}</div>
             <div style="display:flex;gap:8px;justify-content:center;flex-wrap:wrap;">
-              <button onclick="activateCameraScanner()" style="padding:6px 14px;font-size:0.8rem;">🔄 Try Again</button>
-              <button class="secondary" onclick="document.getElementById('qr-file-input').click()" style="padding:6px 14px;font-size:0.8rem;">📁 Upload QR Image</button>
-              <button class="quiet" onclick="scanCurrentCounterQr()" style="padding:6px 14px;font-size:0.8rem;border:1px solid var(--line);">⚡ Check In at Counter</button>
+              <button onclick="activateCameraScanner()" style="padding:6px 14px;font-size:0.8rem;display:inline-flex;align-items:center;gap:4px;">
+                <i data-lucide="rotate-cw" class="lucide-sm"></i> Try Again
+              </button>
+              <button class="secondary" onclick="document.getElementById('qr-file-input').click()" style="padding:6px 14px;font-size:0.8rem;display:inline-flex;align-items:center;gap:4px;">
+                <i data-lucide="upload" class="lucide-sm"></i> Upload QR Image
+              </button>
+              <button class="quiet" onclick="fetchLiveCounterChallenge()" style="padding:6px 14px;font-size:0.8rem;border:1px solid var(--line);display:inline-flex;align-items:center;gap:4px;">
+                <i data-lucide="zap" class="lucide-sm"></i> Use Live Counter Challenge
+              </button>
             </div>
           `;
           placeholder.style.display = 'block';
+          renderIcons();
         }
       }
     }
@@ -1183,22 +1151,25 @@
         },
         (err) => {
           placeholder.innerHTML = `
-            <div style="color:var(--bad);font-weight:600;margin-bottom:6px;">⚠️ Image Scan Error</div>
+            <div style="color:var(--bad);font-weight:600;margin-bottom:6px;display:flex;align-items:center;justify-content:center;gap:6px;">
+              <i data-lucide="alert-triangle" class="lucide-sm"></i> Image Scan Error
+            </div>
             <div style="font-size:0.8rem;color:var(--cream-dim);margin-bottom:10px;">${err.message}</div>
             <button onclick="document.getElementById('qr-file-input').click()">Pick Another Image</button>
           `;
           placeholder.style.display = 'block';
+          renderIcons();
         }
       );
     }
 
     function processManualChallenge() {
       const txt = document.getElementById('manual-challenge-input').value.trim();
-      if (!txt) return alert('Please enter the Challenge JSON from the counter tablet, or click "⚡ Use Live Tablet Challenge".');
+      if (!txt) return alert('Please enter the Challenge JSON from the counter tablet, or click "Use Live Counter Challenge".');
       
       // If user pasted an Ethereum address or hex hash
       if (txt.startsWith('0x') && txt.length < 100) {
-        alert(`You entered an address/hash (${txt.slice(0, 12)}...).\n\nCounter check-in requires the complete Tablet Challenge JSON object (containing device, slotId, nonce, timestamp, and deviceSig).\n\n💡 Tip: Click the "⚡ Use Live Tablet Challenge" button to test instantly, or on the Tablet KDS page (/tablet) click "Copy Challenge Payload"!`);
+        alert(`You entered an address/hash (${txt.slice(0, 12)}...).\n\nCounter check-in requires the complete Tablet Challenge JSON object (containing device, slotId, nonce, timestamp, and deviceSig).\n\nTip: Click the "Use Live Counter Challenge" button to test instantly, or on the Canteen POS page (/pos) view the rotating challenge!`);
         return;
       }
       handleScannedChallenge(txt);
@@ -1299,8 +1270,9 @@
         }
         const placeholder = document.getElementById('scanner-placeholder');
         if (placeholder) {
-          placeholder.innerHTML = '<div style="color:var(--ok);font-weight:700;padding:12px;">✅ QR Scanned Successfully!</div>';
+          placeholder.innerHTML = '<div style="color:var(--ok);font-weight:700;padding:12px;display:flex;align-items:center;justify-content:center;gap:6px;"><i data-lucide="check-circle" class="lucide-sm"></i> QR Scanned Successfully!</div>';
           placeholder.style.display = 'block';
+          renderIcons();
         }
 
         // Render Response QR safely
@@ -1366,6 +1338,7 @@
         }
         card.style.display = 'block';
         card.scrollIntoView({ behavior: 'smooth' });
+        renderIcons();
       }
     }
 
@@ -1431,6 +1404,7 @@
             </div>
           `;
         }).join('');
+        renderIcons();
       } catch (err) {
         cont.innerHTML = '<div style="color:var(--bad);">Failed to load orders.</div>';
       }
@@ -1438,9 +1412,17 @@
 
     // Init & Auto-connect
     window.addEventListener('load', async () => {
+      try {
+        const sess = JSON.parse(localStorage.getItem('canteenpos_auth_session') || '{}');
+        if (sess.user && sess.user.name) {
+          const nameEl = document.getElementById('student-user-name');
+          if (nameEl) nameEl.textContent = sess.user.name.split('(')[0].trim();
+        }
+      } catch (_) {}
+
       initSessionKey();
       loadConfig();
-      loadLiveCounterQr();
+      renderIcons();
 
       if (typeof window.ethereum !== 'undefined') {
         try {

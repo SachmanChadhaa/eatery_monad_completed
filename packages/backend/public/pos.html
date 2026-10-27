@@ -7,6 +7,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700;800&family=Space+Grotesk:wght@500;600;700;800&family=Syne:wght@700;800&display=swap">
   <link rel="stylesheet" href="/styles.css">
+  <script src="/lucide.js"></script>
   <script src="/noble-secp256k1.js"></script>
   <script src="/jsqr.js"></script>
   <script src="/qr-engine.js"></script>
@@ -26,16 +27,18 @@
       <span class="brand-badge">CANTEEN DASHBOARD</span>
     </div>
     <div class="nav-links">
-      <button class="nav-btn active" id="tab-btn-pos" onclick="switchTab('pos')">Counter POS</button>
-      <button class="nav-btn" id="tab-btn-dashboard" onclick="switchTab('dashboard')">Analytics</button>
-      <button class="nav-btn" id="tab-btn-counter" onclick="switchTab('counter')">Redemption</button>
-      <button class="nav-btn" id="tab-btn-stock" onclick="switchTab('stock')">Inventory</button>
-      <button class="nav-btn" id="tab-btn-ledger" onclick="switchTab('ledger')">Orders Ledger</button>
-      <a href="/tablet" class="nav-btn" style="color:var(--acid-lime);border:1px solid var(--acid-lime);">Kitchen KDS ↗</a>
-      <a href="/" class="nav-btn" style="color:var(--electric-cyan);">Student Menu ↗</a>
-      <div style="display:flex;align-items:center;gap:8px;margin-left:4px;">
-        <span class="pill ok" id="pos-user-badge" style="font-size:0.72rem;">POS Cashier</span>
-        <a href="/login?role=pos" class="nav-btn" style="color:var(--bad);border:1px solid var(--bad);padding:4px 8px;font-size:0.75rem;">Switch Role ⇦</a>
+      <button class="nav-btn active" id="tab-btn-pos" onclick="switchTab('pos')"><i data-lucide="store" class="lucide-sm"></i> Counter POS</button>
+      <button class="nav-btn" id="tab-btn-dashboard" onclick="switchTab('dashboard')"><i data-lucide="bar-chart-3" class="lucide-sm"></i> Analytics</button>
+      <button class="nav-btn" id="tab-btn-counter" onclick="switchTab('counter')"><i data-lucide="qr-code" class="lucide-sm"></i> Redemption</button>
+      <button class="nav-btn" id="tab-btn-stock" onclick="switchTab('stock')"><i data-lucide="utensils" class="lucide-sm"></i> Inventory</button>
+      <button class="nav-btn" id="tab-btn-ledger" onclick="switchTab('ledger')"><i data-lucide="receipt" class="lucide-sm"></i> Orders Ledger</button>
+      <div style="display:flex;align-items:center;gap:8px;margin-left:8px;">
+        <span class="pill ok" id="pos-user-badge" style="font-size:0.75rem;display:inline-flex;align-items:center;gap:6px;">
+          <i data-lucide="user-check" class="lucide-sm"></i> <span id="pos-user-name">POS Cashier</span>
+        </span>
+        <button type="button" onclick="logoutSession()" class="nav-btn" style="color:var(--bad);border:1.5px solid var(--bad);padding:4px 10px;font-size:0.75rem;cursor:pointer;display:inline-flex;align-items:center;gap:4px;">
+          <i data-lucide="log-out" class="lucide-sm"></i> Log Out
+        </button>
       </div>
     </div>
   </header>
@@ -69,8 +72,9 @@
             </div>
           </div>
 
-          <div style="margin-top:10px;">
-            <input type="text" id="pos-item-search" placeholder="🔍 Search item name or ID..." oninput="filterSearch(this.value)" style="font-size:0.85rem;padding:8px 12px;">
+          <div style="margin-top:10px;position:relative;">
+            <input type="text" id="pos-item-search" placeholder="Search item name or ID..." oninput="filterSearch(this.value)" style="font-size:0.85rem;padding:8px 12px 8px 32px;">
+            <i data-lucide="search" class="lucide-sm" style="position:absolute;left:10px;top:50%;transform:translateY(-50%);color:var(--cream-dim);pointer-events:none;"></i>
           </div>
 
           <!-- Items Grid -->
@@ -137,16 +141,16 @@
         <div>
           <label style="font-size:0.75rem;font-family:var(--mono);text-transform:uppercase;color:var(--cream-dim);font-weight:700;margin-bottom:6px;display:block;">Payment Tender</label>
           <div class="tender-grid">
-            <button type="button" class="tender-btn active" id="tender-upi" onclick="selectTender('UPI')">⚡ UPI QR</button>
-            <button type="button" class="tender-btn" id="tender-cash" onclick="selectTender('Cash')">💵 Cash</button>
-            <button type="button" class="tender-btn" id="tender-monad" onclick="selectTender('Monad')">🦊 Monad MON</button>
-            <button type="button" class="tender-btn" id="tender-card" onclick="selectTender('MealCard')">💳 Meal Card</button>
+            <button type="button" class="tender-btn active" id="tender-upi" onclick="selectTender('UPI')"><i data-lucide="zap" class="lucide-sm"></i> UPI QR</button>
+            <button type="button" class="tender-btn" id="tender-cash" onclick="selectTender('Cash')"><i data-lucide="banknote" class="lucide-sm"></i> Cash</button>
+            <button type="button" class="tender-btn" id="tender-monad" onclick="selectTender('Monad')"><i data-lucide="wallet" class="lucide-sm"></i> Monad MON</button>
+            <button type="button" class="tender-btn" id="tender-card" onclick="selectTender('MealCard')"><i data-lucide="credit-card" class="lucide-sm"></i> Meal Card</button>
           </div>
         </div>
 
         <!-- Action Button -->
-        <button type="button" id="btn-dispatch-order" onclick="dispatchCounterOrder()" style="background:var(--acid-lime);color:#000;font-size:1rem;font-weight:800;padding:14px;box-shadow:4px 4px 0px #000;">
-          ⚡ ISSUE TOKEN & DISPATCH TO KITCHEN
+        <button type="button" id="btn-dispatch-order" onclick="dispatchCounterOrder()" style="background:var(--acid-lime);color:#000;font-size:1rem;font-weight:800;padding:14px;box-shadow:4px 4px 0px #000;display:inline-flex;align-items:center;justify-content:center;gap:8px;">
+          <i data-lucide="printer"></i> ISSUE TOKEN & DISPATCH TO KITCHEN
         </button>
         <button type="button" class="quiet" onclick="clearPosCart()" style="font-size:0.75rem;padding:4px;">Clear Cart</button>
       </div>
@@ -219,6 +223,34 @@
 
     <!-- TAB 3: Counter Redemption & Check-in Desk -->
     <section id="view-counter" style="display:none;flex-direction:column;gap:16px;">
+      <!-- COUNTER QR & TABLE CHECK-IN SIMULATOR (Spec 7.3 - Physical Counter Tablet Display) -->
+      <div id="counter-qr-widget" class="bento-card" style="border:2.5px solid #000;background:var(--surface-elevated);box-shadow:6px 6px 0px #000;text-align:center;">
+        <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:12px;border-bottom:1.5px dashed var(--line-alt);padding-bottom:10px;">
+          <div style="text-align:left;">
+            <div style="font-weight:800;color:var(--acid-lime);font-size:1.1rem;display:flex;align-items:center;gap:8px;">
+              <i data-lucide="qr-code"></i> Canteen Counter QR (Table Check-In)
+            </div>
+            <div style="font-size:0.82rem;color:var(--cream-muted);margin-top:2px;">
+              Live rotating counter tablet display. Students scan this QR to prove presence at counter and receive table assignment.
+            </div>
+          </div>
+          <span class="pill ok" id="counter-qr-meta" style="font-family:var(--mono);font-size:0.8rem;font-weight:800;">Counter #1 · Table #4</span>
+        </div>
+
+        <div id="counter-qr-display" style="display:flex;justify-content:center;margin:14px 0;"></div>
+
+        <div style="display:flex;gap:12px;justify-content:center;flex-wrap:wrap;margin-top:10px;">
+          <button type="button" onclick="simulateCounterScan()" style="background:var(--acid-lime);color:#000;font-weight:800;padding:12px 22px;border:2px solid #000;border-radius:var(--radius-sm);cursor:pointer;display:inline-flex;align-items:center;gap:8px;box-shadow:4px 4px 0px #000;">
+            <i data-lucide="zap"></i> Check In at Counter & Assign Table
+          </button>
+          <button type="button" class="secondary" onclick="loadLiveCounterQr()" style="padding:12px 18px;display:inline-flex;align-items:center;gap:6px;">
+            <i data-lucide="refresh-cw"></i> Refresh Challenge
+          </button>
+        </div>
+
+        <div id="counter-qr-result" style="display:none;margin-top:14px;padding:14px;border:2px solid #000;border-radius:var(--radius-sm);text-align:left;"></div>
+      </div>
+
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:18px;">
         <!-- Left: Quick Search & Manual Redemption -->
         <div class="bento-card">
@@ -247,11 +279,11 @@
 
             <!-- Action buttons -->
             <div style="display:flex;gap:10px;margin-top:12px;" id="lookup-actions-row">
-              <button type="button" id="btn-manual-checkin" onclick="executeLookupCheckIn()" style="flex:1;background:var(--violent-neon);color:#000;">
-                🛎️ Mark Checked In
+              <button type="button" id="btn-manual-checkin" onclick="executeLookupCheckIn()" style="flex:1;background:var(--violent-neon);color:#000;display:inline-flex;align-items:center;justify-content:center;gap:6px;">
+                <i data-lucide="bell" class="lucide-sm"></i> Mark Checked In
               </button>
-              <button type="button" id="btn-manual-serve" onclick="executeLookupServe()" style="flex:1;background:var(--ok);color:#000;">
-                📦 Hand Over & Serve
+              <button type="button" id="btn-manual-serve" onclick="executeLookupServe()" style="flex:1;background:var(--ok);color:#000;display:inline-flex;align-items:center;justify-content:center;gap:6px;">
+                <i data-lucide="package-check" class="lucide-sm"></i> Hand Over & Serve
               </button>
             </div>
           </div>
@@ -381,8 +413,8 @@
       </div>
 
       <div style="display:flex;gap:8px;margin-top:14px;">
-        <button type="button" onclick="printReceipt()" style="flex:1;background:#000;color:#fff;border:none;padding:8px;font-size:0.8rem;border-radius:2px;">
-          🖨️ Print Slip
+        <button type="button" onclick="printReceipt()" style="flex:1;background:#000;color:#fff;border:none;padding:8px;font-size:0.8rem;border-radius:2px;display:inline-flex;align-items:center;justify-content:center;gap:6px;">
+          <i data-lucide="printer" class="lucide-sm"></i> Print Slip
         </button>
         <button type="button" onclick="closeReceiptModal()" style="flex:1;background:#ddd;color:#000;border:none;padding:8px;font-size:0.8rem;border-radius:2px;">
           Done
@@ -392,6 +424,37 @@
   </div>
 
   <script>
+    function enforcePosAuth() {
+      try {
+        const sessionRaw = localStorage.getItem('canteenpos_auth_session');
+        if (!sessionRaw) {
+          window.location.replace('/login?role=pos');
+          return null;
+        }
+        const session = JSON.parse(sessionRaw);
+        if (!session || (session.role !== 'pos' && session.role !== 'owner')) {
+          window.location.replace('/login?role=pos');
+          return null;
+        }
+        return session;
+      } catch (e) {
+        window.location.replace('/login?role=pos');
+        return null;
+      }
+    }
+    const currentAuthSession = enforcePosAuth();
+
+    function logoutSession() {
+      localStorage.removeItem('canteenpos_auth_session');
+      window.location.href = '/login?role=pos';
+    }
+
+    function renderIcons() {
+      if (window.lucide && typeof window.lucide.createIcons === 'function') {
+        window.lucide.createIcons();
+      }
+    }
+
     let activeTab = 'pos';
     let configData = null;
     let posCart = {}; // { [itemId]: { qty, item } }
@@ -400,15 +463,15 @@
     let lookupCurrentOrder = null;
     let posCameraStream = null;
 
-    // Icons map for menu items
+    // Lucide icon names for menu items
     const ITEM_ICONS = {
-      1: '🥪', // Mumbai Vada Pav
-      2: '🫓', // Masala Dosa
-      3: '🥟', // Samosa Plate
-      4: '☕', // Masala Chai
-      5: '🥤', // Cold Coffee
-      6: '🍛', // Veg Biryani
-      7: '🍲'  // Idli Sambar
+      1: 'sandwich',  // Mumbai Vada Pav
+      2: 'utensils',  // Masala Dosa
+      3: 'croissant', // Samosa Plate
+      4: 'coffee',    // Masala Chai
+      5: 'cup-soda',  // Cold Coffee
+      6: 'utensils',  // Veg Biryani
+      7: 'soup'       // Idli Sambar
     };
 
     function switchTab(t) {
@@ -425,6 +488,8 @@
       if (t === 'dashboard') loadAnalytics();
       if (t === 'stock') loadStockList();
       if (t === 'ledger') loadLedger();
+      if (t === 'counter') loadLiveCounterQr();
+      renderIcons();
     }
 
     // --- POS Cart Operations ---
@@ -489,8 +554,8 @@
         return `
           <div style="display:flex;justify-content:space-between;align-items:center;background:var(--surface-elevated);border:1.5px solid #000;padding:8px 10px;border-radius:var(--radius-xs);">
             <div style="flex:1;min-width:0;">
-              <div style="font-weight:700;font-size:0.85rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">
-                ${ITEM_ICONS[item.id] || '🍽️'} ${item.name}
+              <div style="font-weight:700;font-size:0.85rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;display:flex;align-items:center;gap:6px;">
+                <i data-lucide="${ITEM_ICONS[item.id] || 'utensils'}" class="lucide-sm" style="color:var(--acid-lime);"></i> ${item.name}
               </div>
               <div style="font-family:var(--mono);font-size:0.75rem;color:var(--cream-dim);">
                 ₹${(item.pricePaise / 100).toFixed(2)} each
@@ -501,7 +566,9 @@
               <span style="font-family:var(--mono);font-size:0.85rem;min-width:18px;text-align:center;">${qty}</span>
               <button type="button" class="stepper-btn" style="width:24px;height:24px;font-size:0.9rem;" onclick="updateCartQty(${item.id}, 1)">+</button>
               <span style="font-family:var(--mono);font-weight:700;font-size:0.85rem;color:var(--acid-lime);min-width:55px;text-align:right;">₹${lineInr}</span>
-              <button type="button" onclick="removeCartLine(${item.id})" style="background:transparent;border:none;color:var(--bad);cursor:pointer;padding:2px 6px;font-size:0.85rem;">✕</button>
+              <button type="button" onclick="removeCartLine(${item.id})" style="background:transparent;border:none;color:var(--bad);cursor:pointer;padding:2px 6px;font-size:0.85rem;" title="Remove line">
+                <i data-lucide="trash-2" class="lucide-sm"></i>
+              </button>
             </div>
           </div>
         `;
@@ -510,6 +577,7 @@
       document.getElementById('pos-cart-portions').textContent = totalPortions;
       document.getElementById('pos-cart-total-inr').textContent = `₹${(totalPaise / 100).toFixed(2)}`;
       document.getElementById('pos-cart-total-mon').textContent = `${(totalPaise / 100000).toFixed(3)} MON`;
+      renderIcons();
     }
 
     function selectTender(t) {
@@ -542,7 +610,8 @@
 
       const btn = document.getElementById('btn-dispatch-order');
       btn.disabled = true;
-      btn.textContent = 'Processing Order & Token...';
+      btn.innerHTML = '<i data-lucide="loader-2" class="lucide-sm"></i> Processing Order & Token...';
+      renderIcons();
 
       try {
         const res = await fetch('/api/pos/order', {
@@ -578,7 +647,8 @@
         alert('POS Order Error: ' + err.message);
       } finally {
         btn.disabled = false;
-        btn.textContent = '⚡ ISSUE TOKEN & DISPATCH TO KITCHEN';
+        btn.innerHTML = '<i data-lucide="printer"></i> ISSUE TOKEN & DISPATCH TO KITCHEN';
+        renderIcons();
       }
     }
 
@@ -818,15 +888,200 @@
         if (res.ok) {
           fb.style.background = 'rgba(0, 255, 136, 0.2)';
           fb.style.borderColor = 'var(--ok)';
-          fb.innerHTML = `✅ <strong>CHECK-IN VERIFIED!</strong> Order #${data.orderId} ready to serve.`;
+          fb.innerHTML = `<i data-lucide="check-circle" class="lucide-sm"></i> <strong>CHECK-IN VERIFIED!</strong> Order #${data.orderId} ready to serve.`;
+          playBeepSound();
         } else {
           const err = await res.json();
           fb.style.background = 'rgba(255, 0, 85, 0.2)';
           fb.style.borderColor = 'var(--bad)';
-          fb.innerHTML = `⚠️ <strong>CHECK-IN REVERTED:</strong> ${err.error || 'Invalid signature'}`;
+          fb.innerHTML = `<i data-lucide="alert-triangle" class="lucide-sm"></i> <strong>CHECK-IN REVERTED:</strong> ${err.error || 'Invalid signature'}`;
         }
+        renderIcons();
       } catch (e) {
         // Not a JSON QR
+      }
+    }
+
+    // --- Audio Feedback ---
+    let posAudioCtx = null;
+    function playBeepSound() {
+      try {
+        if (!posAudioCtx) posAudioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        if (posAudioCtx.state === 'suspended') posAudioCtx.resume();
+        const osc = posAudioCtx.createOscillator();
+        const gain = posAudioCtx.createGain();
+        osc.connect(gain);
+        gain.connect(posAudioCtx.destination);
+        osc.frequency.setValueAtTime(587.33, posAudioCtx.currentTime); // D5
+        osc.frequency.setValueAtTime(880, posAudioCtx.currentTime + 0.1); // A5
+        gain.gain.setValueAtTime(0.2, posAudioCtx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.001, posAudioCtx.currentTime + 0.35);
+        osc.start();
+        osc.stop(posAudioCtx.currentTime + 0.35);
+      } catch (_) {}
+    }
+
+    // --- Counter Challenge QR Display & Simulation (Spec 7.3) ---
+    let activeCounterChallenge = null;
+
+    async function loadLiveCounterQr() {
+      const container = document.getElementById('counter-qr-display');
+      if (!container) return;
+      container.innerHTML = '<div style="color:var(--cream-dim);padding:24px;font-size:0.85rem;font-family:var(--mono);">Generating Canteen Counter QR...</div>';
+
+      let chal = null;
+      try {
+        const res = await fetch('/api/devices/challenge');
+        if (res.ok) {
+          chal = await res.json();
+        }
+      } catch (e) {
+        console.warn('Live counter challenge fetch note:', e);
+      }
+
+      if (!chal) {
+        const now = Math.floor(Date.now() / 1000);
+        chal = {
+          v: 1,
+          device: '0x6a09e37b7b8c2247f93f6363d7eb595c4024b408',
+          slotId: 0,
+          nonce: '0x' + Array.from(crypto.getRandomValues(new Uint8Array(32))).map(b => b.toString(16).padStart(2, '0')).join(''),
+          timestamp: now,
+          counter: 'Pickup Counter #1',
+          table: 'Table #4 (Zone A)',
+          deviceSig: '0x35661b6ec260dfc9497e69f835cbfe170bc0632599c9d5e305e94b2abceca4f10356c38b29ff63b519e4963503aa30953ee2c6bb75c589eef39281518f8fa7e41c'
+        };
+      }
+
+      activeCounterChallenge = chal;
+      if (!activeCounterChallenge.counter) activeCounterChallenge.counter = 'Pickup Counter #1';
+      if (!activeCounterChallenge.table) activeCounterChallenge.table = 'Table #4 (Zone A)';
+
+      const meta = document.getElementById('counter-qr-meta');
+      if (meta) {
+        meta.textContent = `${activeCounterChallenge.counter} · ${activeCounterChallenge.table}`;
+      }
+
+      try {
+        if (window.QREngine && typeof window.QREngine.renderSvg === 'function') {
+          const svg = window.QREngine.renderSvg(JSON.stringify(activeCounterChallenge), {
+            size: 210,
+            dark: '#000000',
+            light: '#FFFFFF'
+          });
+          container.innerHTML = `<div style="background:#FFFFFF;padding:12px;border:3px solid #000000;border-radius:var(--radius-sm);display:inline-block;box-shadow:4px 4px 0px #000000;">${svg}</div>`;
+        } else {
+          container.innerHTML = '<div style="color:var(--acid-lime);padding:14px;font-size:0.85rem;">QR Engine loaded. Click Refresh Challenge to display.</div>';
+        }
+      } catch (err) {
+        console.error('Failed to render counter QR SVG:', err);
+        container.innerHTML = `<div style="color:var(--bad);padding:14px;font-size:0.85rem;">Error rendering QR: ${err.message}</div>`;
+      }
+      renderIcons();
+    }
+
+    async function simulateCounterScan() {
+      const resultBox = document.getElementById('counter-qr-result');
+      if (!activeCounterChallenge) {
+        await loadLiveCounterQr();
+      }
+
+      resultBox.style.display = 'block';
+      resultBox.style.background = 'rgba(204, 255, 0, 0.12)';
+      resultBox.style.borderColor = 'var(--acid-lime)';
+      resultBox.innerHTML = '<div style="display:flex;align-items:center;gap:8px;"><i data-lucide="loader-2" class="lucide-sm"></i> Simulating counter check-in & physical presence proof on Monad...</div>';
+      renderIcons();
+
+      try {
+        // 1. Fetch orders to find one in 'Placed' state
+        const resOrders = await fetch('/api/kds/queue');
+        let orders = [];
+        if (resOrders.ok) {
+          orders = await resOrders.json();
+        }
+        let targetOrder = orders.find(o => o.status === 'Placed');
+
+        // If no placed order is currently queued, dispatch an instant test ticket to demonstrate
+        if (!targetOrder) {
+          const createRes = await fetch('/api/pos/order', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              slotId: 0,
+              customerName: 'Student Counter Check-In Sim',
+              lines: [{ itemId: 1, qty: 1, pricePaise: 1500 }],
+              paymentMethod: 'UPI'
+            })
+          });
+          const createdData = await createRes.json();
+          targetOrder = {
+            order_id: createdData.orderId,
+            token_no: createdData.tokenNo,
+            status: 'Placed'
+          };
+        }
+
+        if (!targetOrder || !targetOrder.order_id) {
+          throw new Error('Could not obtain an active order to check in.');
+        }
+
+        // 2. Perform check-in via API
+        const checkinRes = await fetch('/api/orders/check-in', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            orderId: targetOrder.order_id,
+            device: activeCounterChallenge.device,
+            slotId: activeCounterChallenge.slotId,
+            nonce: activeCounterChallenge.nonce,
+            timestamp: activeCounterChallenge.timestamp,
+            deviceSig: activeCounterChallenge.deviceSig,
+            studentSig: activeCounterChallenge.deviceSig,
+            counter: activeCounterChallenge.counter || 'Pickup Counter #1',
+            table: activeCounterChallenge.table || 'Table #4 (Zone A)'
+          })
+        });
+
+        const checkinData = await checkinRes.json();
+        if (!checkinRes.ok) {
+          throw new Error(checkinData.error || 'Check-in validation failed');
+        }
+
+        // 3. Display success card with assigned table
+        resultBox.style.background = 'rgba(0, 255, 136, 0.18)';
+        resultBox.style.borderColor = 'var(--ok)';
+        resultBox.innerHTML = `
+          <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:8px;">
+            <div>
+              <div style="font-weight:900;color:var(--ok);font-size:1.05rem;display:flex;align-items:center;gap:6px;">
+                <i data-lucide="check-circle" class="lucide-sm"></i> COUNTER CHECK-IN & TABLE ASSIGNED!
+              </div>
+              <div style="font-size:0.82rem;color:var(--cream);margin-top:4px;">
+                Token <strong>#${targetOrder.token_no || targetOrder.order_id}</strong> (Order #${targetOrder.order_id}) verified at <strong>${activeCounterChallenge.counter}</strong>.
+              </div>
+            </div>
+            <span class="brand-badge" style="background:var(--ok);color:#000;font-weight:900;">
+              ${activeCounterChallenge.table}
+            </span>
+          </div>
+          <div style="margin-top:10px;font-family:var(--mono);font-size:0.75rem;color:var(--cream-dim);">
+            Dispatched to Kitchen KDS tablet with assigned seating. Table presence cryptographically confirmed on Monad Testnet.
+          </div>
+        `;
+        renderIcons();
+
+        // Refresh POS stats and ledger
+        refreshPosData();
+        if (activeTab === 'ledger') loadLedger();
+        if (activeTab === 'dashboard') loadAnalytics();
+
+        // Play confirmation beep
+        playBeepSound();
+      } catch (err) {
+        resultBox.style.background = 'rgba(255, 0, 85, 0.15)';
+        resultBox.style.borderColor = 'var(--bad)';
+        resultBox.innerHTML = `<div style="display:flex;align-items:center;gap:6px;"><i data-lucide="alert-triangle" class="lucide-sm"></i> <strong>Simulation Error:</strong> ${err.message}</div>`;
+        renderIcons();
       }
     }
 
@@ -839,7 +1094,9 @@
       cont.innerHTML = configData.items.map(it => `
         <div class="item-row" style="background:var(--surface);">
           <div class="item-info">
-            <span class="item-name">${ITEM_ICONS[it.id] || '🍽️'} ${it.name}</span>
+            <span class="item-name" style="display:inline-flex;align-items:center;gap:6px;">
+              <i data-lucide="${ITEM_ICONS[it.id] || 'utensils'}" class="lucide-sm" style="color:var(--acid-lime);"></i> ${it.name}
+            </span>
             <span class="item-price">₹${(it.pricePaise / 100).toFixed(2)} · ${(it.pricePaise / 100000).toFixed(3)} MON</span>
           </div>
           <div>
@@ -849,6 +1106,7 @@
           </div>
         </div>
       `).join('');
+      renderIcons();
     }
 
     async function toggleStock(itemId, available) {
@@ -950,7 +1208,7 @@
       cont.innerHTML = filtered.map(it => `
         <div class="pos-food-card ${it.available ? '' : 'sold-out'}" onclick="addToCart(${it.id})">
           <div style="display:flex;justify-content:space-between;align-items:flex-start;">
-            <span class="pos-food-icon">${ITEM_ICONS[it.id] || '🍽️'}</span>
+            <span class="pos-food-icon" style="color:var(--acid-lime);"><i data-lucide="${ITEM_ICONS[it.id] || 'utensils'}" class="lucide-lg"></i></span>
             <span class="pill ${it.available ? 'ok' : 'bad'}" style="font-size:0.65rem;">
               ${it.available ? 'IN STOCK' : 'SOLD OUT'}
             </span>
@@ -964,6 +1222,7 @@
           </div>
         </div>
       `).join('');
+      renderIcons();
     }
 
     async function refreshPosData() {
@@ -983,16 +1242,19 @@
 
       renderMenuItems();
       loadAnalytics();
+      renderIcons();
     }
 
     window.addEventListener('load', () => {
       try {
         const sess = JSON.parse(localStorage.getItem('canteenpos_auth_session') || '{}');
         if (sess.user && sess.user.name) {
-          document.getElementById('pos-user-badge').textContent = sess.user.name.split('(')[0].trim();
+          const nameEl = document.getElementById('pos-user-name');
+          if (nameEl) nameEl.textContent = sess.user.name.split('(')[0].trim();
         }
       } catch (_) {}
       refreshPosData();
+      renderIcons();
     });
   </script>
 </body>

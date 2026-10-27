@@ -7,6 +7,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700;800&family=Space+Grotesk:wght@500;600;700;800&family=Syne:wght@700;800&display=swap">
   <link rel="stylesheet" href="/styles.css">
+  <script src="/lucide.js"></script>
   <script src="/noble-secp256k1.js"></script>
   <script src="/jsqr.js"></script>
   <script src="/qr-engine.js"></script>
@@ -27,25 +28,35 @@
 
     <!-- Kitchen Navigation Links -->
     <div class="nav-links">
-      <button class="nav-btn active" id="tab-btn-kds" onclick="switchTabletTab('kds')">🍳 Live Prep Board</button>
-      <button class="nav-btn" id="tab-btn-prep" onclick="switchTabletTab('prep')">📋 Morning Baseline</button>
-      <button class="nav-btn" id="tab-btn-counter" onclick="switchTabletTab('counter')">📱 Counter QR</button>
-      <button class="nav-btn" id="tab-btn-stock" onclick="switchTabletTab('stock')">Sold Out</button>
-      <a href="/pos" class="nav-btn" style="color:var(--acid-lime);border:1px solid var(--acid-lime);">Canteen POS ↗</a>
-      <a href="/" class="nav-btn" style="color:var(--electric-cyan);">Student Menu ↗</a>
-      <div style="display:flex;align-items:center;gap:8px;margin-left:4px;">
-        <span class="pill warn" id="kds-user-badge" style="font-size:0.72rem;">Kitchen Chef</span>
-        <a href="/login?role=kds" class="nav-btn" style="color:var(--bad);border:1px solid var(--bad);padding:4px 8px;font-size:0.75rem;">Switch Role ⇦</a>
+      <button class="nav-btn active" id="tab-btn-kds" onclick="switchTabletTab('kds')">
+        <i data-lucide="chef-hat" class="lucide-sm"></i> Live Prep Board
+      </button>
+      <button class="nav-btn" id="tab-btn-prep" onclick="switchTabletTab('prep')">
+        <i data-lucide="clipboard-list" class="lucide-sm"></i> Morning Baseline
+      </button>
+      <button class="nav-btn" id="tab-btn-counter" onclick="switchTabletTab('counter')">
+        <i data-lucide="qr-code" class="lucide-sm"></i> Counter QR
+      </button>
+      <button class="nav-btn" id="tab-btn-stock" onclick="switchTabletTab('stock')">
+        <i data-lucide="utensils" class="lucide-sm"></i> Sold Out
+      </button>
+      <div style="display:flex;align-items:center;gap:8px;margin-left:8px;">
+        <span class="pill warn" id="kds-user-badge" style="font-size:0.75rem;display:inline-flex;align-items:center;gap:6px;">
+          <i data-lucide="chef-hat" class="lucide-sm"></i> <span id="kds-user-name">Kitchen Chef</span>
+        </span>
+        <button type="button" onclick="logoutSession()" class="nav-btn" style="color:var(--bad);border:1.5px solid var(--bad);padding:4px 10px;font-size:0.75rem;cursor:pointer;display:inline-flex;align-items:center;gap:4px;">
+          <i data-lucide="log-out" class="lucide-sm"></i> Log Out
+        </button>
       </div>
     </div>
 
     <!-- Quick Tablet Controls -->
     <div style="display:flex;align-items:center;gap:8px;">
-      <button type="button" class="quiet" id="btn-sound-toggle" onclick="toggleKitchenSound()" style="padding:6px 10px;font-size:0.8rem;">
-        🔔 Audio: ON
+      <button type="button" class="quiet" id="btn-sound-toggle" onclick="toggleKitchenSound()" style="padding:6px 10px;font-size:0.8rem;display:inline-flex;align-items:center;gap:6px;">
+        <i data-lucide="volume-2" class="lucide-sm"></i> <span id="sound-toggle-label">Audio: ON</span>
       </button>
-      <button type="button" class="quiet" onclick="toggleFullscreen()" style="padding:6px 10px;font-size:0.8rem;">
-        ⛶ Kiosk
+      <button type="button" class="quiet" onclick="toggleFullscreen()" style="padding:6px 10px;font-size:0.8rem;display:inline-flex;align-items:center;gap:6px;">
+        <i data-lucide="maximize" class="lucide-sm"></i> <span>Kiosk</span>
       </button>
     </div>
   </header>
@@ -74,8 +85,8 @@
 
     <!-- Active Prep Tally Bar (Aggregated Portions across all active tickets) -->
     <div class="kds-tally-bar" id="kds-tally-bar" style="margin-bottom:16px;">
-      <span style="font-family:var(--mono);font-weight:800;font-size:0.85rem;color:var(--acid-lime);text-transform:uppercase;letter-spacing:0.06em;">
-        🍳 BATCH PREP TALLY:
+      <span style="font-family:var(--mono);font-weight:800;font-size:0.85rem;color:var(--acid-lime);text-transform:uppercase;letter-spacing:0.06em;display:inline-flex;align-items:center;gap:6px;">
+        <i data-lucide="flame" class="lucide-sm"></i> BATCH PREP TALLY:
       </span>
       <div id="kds-tally-items" style="display:flex;gap:8px;flex-wrap:wrap;font-size:0.85rem;">
         <span style="color:var(--cream-dim);">No active items to cook</span>
@@ -88,8 +99,8 @@
         <!-- COLUMN 1: TO PREPARE / QUEUED -->
         <div class="kds-column" id="col-queued-box">
           <div class="kds-col-header">
-            <span class="kds-col-title" style="color:var(--violent-light);">
-              📋 To Cook
+            <span class="kds-col-title" style="color:var(--violent-light);display:inline-flex;align-items:center;gap:6px;">
+              <i data-lucide="clock" class="lucide-sm"></i> To Cook
             </span>
             <span class="pill" id="count-col-queued">0</span>
           </div>
@@ -101,8 +112,8 @@
         <!-- COLUMN 2: IN PREPARATION (COOKING) -->
         <div class="kds-column" id="col-cooking-box" style="border-color:var(--hazard-orange);">
           <div class="kds-col-header">
-            <span class="kds-col-title" style="color:var(--hazard-orange);">
-              🍳 In Prep (Cooking)
+            <span class="kds-col-title" style="color:var(--hazard-orange);display:inline-flex;align-items:center;gap:6px;">
+              <i data-lucide="flame" class="lucide-sm"></i> In Prep (Cooking)
             </span>
             <span class="pill warn" id="count-col-cooking">0</span>
           </div>
@@ -114,8 +125,8 @@
         <!-- COLUMN 3: READY / CHECKED IN -->
         <div class="kds-column" id="col-ready-box" style="border-color:var(--acid-lime);">
           <div class="kds-col-header">
-            <span class="kds-col-title" style="color:var(--acid-lime);">
-              🛎️ Ready / Counter
+            <span class="kds-col-title" style="color:var(--acid-lime);display:inline-flex;align-items:center;gap:6px;">
+              <i data-lucide="bell" class="lucide-sm"></i> Ready / Counter
             </span>
             <span class="pill ok" id="count-col-ready">0</span>
           </div>
@@ -127,8 +138,8 @@
         <!-- COLUMN 4: RECENTLY SERVED -->
         <div class="kds-column" id="col-served-box">
           <div class="kds-col-header">
-            <span class="kds-col-title" style="color:var(--ok);">
-              ✅ Served
+            <span class="kds-col-title" style="color:var(--ok);display:inline-flex;align-items:center;gap:6px;">
+              <i data-lucide="check-check" class="lucide-sm"></i> Served
             </span>
             <span class="pill" id="count-col-served">0</span>
           </div>
@@ -167,8 +178,8 @@
           Generating challenge...
         </div>
 
-        <button type="button" class="secondary" onclick="copyChallengeJson()" style="margin-top:10px;padding:6px 14px;font-size:0.8rem;">
-          📋 Copy Challenge Payload
+        <button type="button" class="secondary" onclick="copyChallengeJson()" style="margin-top:10px;padding:6px 14px;font-size:0.8rem;display:inline-flex;align-items:center;gap:6px;">
+          <i data-lucide="copy" class="lucide-sm"></i> Copy Challenge Payload
         </button>
       </div>
 
@@ -190,8 +201,8 @@
           <div style="font-family:var(--mono);font-size:2rem;font-weight:900;" id="result-token">TOKEN #1</div>
           <div style="font-size:1.1rem;color:#ffffff;font-weight:700;margin-top:4px;" id="result-items">2 Vada Pav</div>
           <div style="font-size:0.85rem;margin-top:4px;font-weight:700;" id="result-status">CHECKED IN · READY TO SERVE</div>
-          <button style="margin-top:12px;background:var(--ok);color:#000;" id="btn-serve-immediate" onclick="markServedCurrent()">
-            📦 Mark Served On-Chain
+          <button style="margin-top:12px;background:var(--ok);color:#000;display:inline-flex;align-items:center;justify-content:center;gap:6px;" id="btn-serve-immediate" onclick="markServedCurrent()">
+            <i data-lucide="package-check" class="lucide-sm"></i> Mark Served On-Chain
           </button>
         </div>
       </div>
@@ -212,6 +223,37 @@
   </main>
 
   <script>
+    function enforceKdsAuth() {
+      try {
+        const sessionRaw = localStorage.getItem('canteenpos_auth_session');
+        if (!sessionRaw) {
+          window.location.replace('/login?role=kds');
+          return null;
+        }
+        const session = JSON.parse(sessionRaw);
+        if (!session || (session.role !== 'kds' && session.role !== 'owner')) {
+          window.location.replace('/login?role=kds');
+          return null;
+        }
+        return session;
+      } catch (e) {
+        window.location.replace('/login?role=kds');
+        return null;
+      }
+    }
+    const currentAuthSession = enforceKdsAuth();
+
+    function logoutSession() {
+      localStorage.removeItem('canteenpos_auth_session');
+      window.location.href = '/login?role=kds';
+    }
+
+    function renderIcons() {
+      if (window.lucide && typeof window.lucide.createIcons === 'function') {
+        window.lucide.createIcons();
+      }
+    }
+
     // Demo tablet device account (pre-authorized in deployments)
     const TABLET_DEVICE = {
       address: '0x0f78BE7C8A0c51Ec454bfe7586d2557974f53A36',
@@ -309,8 +351,9 @@
     function toggleKitchenSound() {
       soundEnabled = !soundEnabled;
       const btn = document.getElementById('btn-sound-toggle');
-      btn.textContent = soundEnabled ? '🔔 Audio: ON' : '🔕 Audio: MUTED';
+      btn.innerHTML = soundEnabled ? '<i data-lucide="volume-2" class="lucide-sm"></i> <span id="sound-toggle-label">Audio: ON</span>' : '<i data-lucide="volume-x" class="lucide-sm"></i> <span id="sound-toggle-label">Audio: MUTED</span>';
       btn.style.color = soundEnabled ? 'var(--acid-lime)' : 'var(--cream-dim)';
+      renderIcons();
       if (soundEnabled) playChime('new_order');
     }
 
@@ -336,6 +379,7 @@
       if (t === 'kds') loadKdsQueue();
       if (t === 'prep') loadMorningPrepSummary();
       if (t === 'stock') loadStock();
+      renderIcons();
     }
 
     function filterKdsSlot(slotId, btn) {
@@ -625,20 +669,20 @@
           let actionButtons = '';
           if (stage === 'queued') {
             actionButtons = `
-              <button type="button" onclick="updatePrepStatus(${o.order_id}, 'Preparing')" style="background:var(--hazard-orange);color:#000;font-weight:800;padding:8px 12px;font-size:0.85rem;">
-                🍳 Start Cooking
+              <button type="button" onclick="updatePrepStatus(${o.order_id}, 'Preparing')" style="background:var(--hazard-orange);color:#000;font-weight:800;padding:8px 12px;font-size:0.85rem;display:inline-flex;align-items:center;justify-content:center;gap:6px;">
+                <i data-lucide="flame" class="lucide-sm"></i> Start Cooking
               </button>
             `;
           } else if (stage === 'cooking') {
             actionButtons = `
-              <button type="button" onclick="updatePrepStatus(${o.order_id}, 'Ready')" style="background:var(--acid-lime);color:#000;font-weight:800;padding:8px 12px;font-size:0.85rem;">
-                ✅ Mark Ready / Plated
+              <button type="button" onclick="updatePrepStatus(${o.order_id}, 'Ready')" style="background:var(--acid-lime);color:#000;font-weight:800;padding:8px 12px;font-size:0.85rem;display:inline-flex;align-items:center;justify-content:center;gap:6px;">
+                <i data-lucide="check" class="lucide-sm"></i> Mark Ready / Plated
               </button>
             `;
           } else if (stage === 'ready') {
             actionButtons = `
-              <button type="button" onclick="updatePrepStatus(${o.order_id}, 'Served')" style="background:var(--ok);color:#000;font-weight:800;padding:10px 14px;font-size:0.9rem;">
-                📦 Hand Over & Serve
+              <button type="button" onclick="updatePrepStatus(${o.order_id}, 'Served')" style="background:var(--ok);color:#000;font-weight:800;padding:10px 14px;font-size:0.9rem;display:inline-flex;align-items:center;justify-content:center;gap:6px;">
+                <i data-lucide="package-check" class="lucide-sm"></i> Hand Over & Serve
               </button>
             `;
           }
@@ -646,14 +690,14 @@
           return `
             <div class="${cardClass}">
               ${isCheckedIn ? `
-                <div style="background:var(--ok);color:#000;font-family:var(--mono);font-size:0.75rem;font-weight:900;padding:3px 8px;border-radius:var(--radius-xs);text-align:center;">
-                  🛎️ AT COUNTER · READY FOR HANDOVER
+                <div style="background:var(--ok);color:#000;font-family:var(--mono);font-size:0.75rem;font-weight:900;padding:3px 8px;border-radius:var(--radius-xs);text-align:center;display:flex;align-items:center;justify-content:center;gap:6px;">
+                  <i data-lucide="bell" class="lucide-sm"></i> AT COUNTER · READY FOR HANDOVER
                 </div>
               ` : ''}
 
               ${isUrgent ? `
-                <div style="background:var(--bad);color:#fff;font-family:var(--mono);font-size:0.75rem;font-weight:900;padding:3px 8px;border-radius:var(--radius-xs);text-align:center;">
-                  ⚠️ URGENT (>10m)! SERVE BEFORE GRACE EXPIRES
+                <div style="background:var(--bad);color:#fff;font-family:var(--mono);font-size:0.75rem;font-weight:900;padding:3px 8px;border-radius:var(--radius-xs);text-align:center;display:flex;align-items:center;justify-content:center;gap:6px;">
+                  <i data-lucide="alert-triangle" class="lucide-sm"></i> URGENT (>10m)! SERVE BEFORE GRACE EXPIRES
                 </div>
               ` : ''}
 
@@ -684,6 +728,7 @@
         document.getElementById('col-cooking-tickets').innerHTML = cooking.map(o => renderKdsTicket(o, 'cooking')).join('') || '<div style="color:var(--cream-dim);text-align:center;padding:24px;">No orders cooking</div>';
         document.getElementById('col-ready-tickets').innerHTML = ready.map(o => renderKdsTicket(o, 'ready')).join('') || '<div style="color:var(--cream-dim);text-align:center;padding:24px;">No ready orders</div>';
         document.getElementById('col-served-tickets').innerHTML = served.slice(0, 8).map(o => renderKdsTicket(o, 'served')).join('') || '<div style="color:var(--cream-dim);text-align:center;padding:24px;">No served orders</div>';
+        renderIcons();
       } catch (err) {
         console.warn('KDS queue error:', err);
       }
@@ -803,7 +848,8 @@
       try {
         const sess = JSON.parse(localStorage.getItem('canteenpos_auth_session') || '{}');
         if (sess.user && sess.user.name) {
-          document.getElementById('kds-user-badge').textContent = sess.user.name.split('(')[0].trim();
+          const nameEl = document.getElementById('kds-user-name');
+          if (nameEl) nameEl.textContent = sess.user.name.split('(')[0].trim();
         }
       } catch (_) {}
       const cfgRes = await fetch('/api/config');
@@ -812,6 +858,7 @@
       
       startChallengeRotation();
       loadKdsQueue();
+      renderIcons();
 
       // Auto-poll KDS every 3 seconds for live kitchen updates
       setInterval(() => {
