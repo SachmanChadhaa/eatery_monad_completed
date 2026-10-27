@@ -48,6 +48,9 @@ export default async function handler(req: IncomingMessage, res: ServerResponse)
         return false
       }
 
+      if (p === '/login' || p === '/login.html' || p === '/auth') {
+        if (serveFile([resolve(publicDir, 'login.html'), resolve(staticDir, 'login.html')], 'text/html; charset=utf-8')) return
+      }
       if (p === '/' || p === '/student' || p === '/index.html') {
         if (serveFile([resolve(publicDir, 'index.html'), resolve(staticDir, 'student.html')], 'text/html; charset=utf-8')) return
       }

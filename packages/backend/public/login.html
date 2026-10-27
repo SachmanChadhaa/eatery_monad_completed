@@ -1,0 +1,437 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>CanteenPOS · Unified Access Gateway</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700;800&family=Space+Grotesk:wght@500;600;700;800&family=Syne:wght@700;800;900&display=swap">
+  <link rel="stylesheet" href="/styles.css">
+  <style>
+    .role-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 14px;
+      margin: 18px 0;
+    }
+    .role-tile {
+      background: var(--surface);
+      border: 2.5px solid #000000;
+      border-radius: var(--radius-sm);
+      padding: 16px;
+      cursor: pointer;
+      box-shadow: 4px 4px 0px #000000;
+      transition: transform 0.1s ease, box-shadow 0.1s ease, border-color 0.15s ease, background 0.15s ease;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      position: relative;
+    }
+    .role-tile:hover {
+      transform: translate(-2px, -2px);
+      box-shadow: 6px 6px 0px #000000;
+      background: var(--surface-hover);
+    }
+    .role-tile.active-student {
+      border-color: var(--electric-cyan);
+      box-shadow: 6px 6px 0px #000000, 8px 8px 0px var(--electric-cyan);
+      background: #091a24;
+    }
+    .role-tile.active-pos {
+      border-color: var(--acid-lime);
+      box-shadow: 6px 6px 0px #000000, 8px 8px 0px var(--acid-lime);
+      background: #142008;
+    }
+    .role-tile.active-kds {
+      border-color: var(--hazard-orange);
+      box-shadow: 6px 6px 0px #000000, 8px 8px 0px var(--hazard-orange);
+      background: #241408;
+    }
+    .role-tile.active-owner {
+      border-color: var(--violent-neon);
+      box-shadow: 6px 6px 0px #000000, 8px 8px 0px var(--violent-neon);
+      background: #1d0f2f;
+    }
+
+    .role-icon-banner {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .role-icon {
+      font-size: 2.2rem;
+      line-height: 1;
+    }
+    .role-title {
+      font-family: var(--serif);
+      font-weight: 800;
+      font-size: 1.15rem;
+      margin: 0;
+      color: #ffffff;
+    }
+    .role-desc {
+      font-size: 0.8rem;
+      color: var(--cream-muted);
+      line-height: 1.4;
+    }
+
+    .login-box {
+      background: var(--surface);
+      border: 3px solid #000000;
+      border-radius: var(--radius-sm);
+      padding: 24px;
+      box-shadow: 8px 8px 0px #000000;
+      margin-top: 10px;
+    }
+
+    .quick-preset-pill {
+      font-family: var(--mono);
+      font-size: 0.72rem;
+      font-weight: 700;
+      padding: 4px 10px;
+      border-radius: var(--radius-xs);
+      border: 1.5px solid #000000;
+      background: var(--surface-elevated);
+      color: var(--cream-muted);
+      cursor: pointer;
+      box-shadow: 2px 2px 0px #000000;
+      transition: all 0.15s ease;
+    }
+    .quick-preset-pill:hover {
+      background: var(--surface-hover);
+      color: #ffffff;
+      transform: translateY(-1px);
+    }
+  </style>
+</head>
+<body>
+  <!-- Header Bar -->
+  <header class="header-bar">
+    <div class="brand-group">
+      <h1 class="brand-title">CanteenPOS</h1>
+      <span class="brand-badge" style="background:var(--violent-neon);color:#000;font-weight:900;">UNIFIED GATEWAY</span>
+    </div>
+    <div class="nav-links">
+      <span class="pill ok">Monad Testnet: 10143</span>
+      <span class="pill live">Zero-Loss State Machine</span>
+    </div>
+  </header>
+
+  <main class="container wide" style="max-width:880px;padding:24px 16px 80px 16px;">
+    <!-- Hero Header -->
+    <div style="text-align:center;margin-bottom:12px;">
+      <div style="display:inline-block;padding:4px 12px;background:rgba(204, 255, 0, 0.12);border:1.5px solid var(--acid-lime);border-radius:var(--radius-full);font-family:var(--mono);font-size:0.75rem;font-weight:800;color:var(--acid-lime);letter-spacing:0.08em;text-transform:uppercase;margin-bottom:8px;">
+        // ZERO-LOSS CANTEEN OS ON MONAD
+      </div>
+      <h2 style="font-family:var(--serif);font-size:2.2rem;font-weight:900;letter-spacing:-0.03em;margin:0 0 6px 0;color:#ffffff;">
+        SELECT INTERFACE & AUTHENTICATE
+      </h2>
+      <p style="font-size:0.95rem;color:var(--cream-muted);max-width:540px;margin:0 auto;">
+        Choose your role to access the Student Pre-Order PWA, Kitchen Tablet KDS, or Canteen POS Cashier Terminal.
+      </p>
+    </div>
+
+    <!-- 4 Interactive Role Selection Chunk Tiles -->
+    <div class="role-grid">
+      <!-- Role 1: Student Pre-Order -->
+      <div class="role-tile" id="role-tile-student" onclick="selectRole('student')">
+        <div class="role-icon-banner">
+          <span class="role-icon">🎒</span>
+          <span class="brand-badge" style="color:var(--electric-cyan);border-color:var(--electric-cyan);">07:00-08:58</span>
+        </div>
+        <h3 class="role-title">Student Portal</h3>
+        <p class="role-desc">Browse menu, book 30% capped rush slots, pay UPI/MON, offline presence proof.</p>
+        <div style="font-family:var(--mono);font-size:0.7rem;color:var(--electric-cyan);font-weight:700;">
+          Target: /student
+        </div>
+      </div>
+
+      <!-- Role 2: Canteen POS -->
+      <div class="role-tile active-pos" id="role-tile-pos" onclick="selectRole('pos')">
+        <div class="role-icon-banner">
+          <span class="role-icon">⚡</span>
+          <span class="brand-badge" style="color:var(--acid-lime);border-color:var(--acid-lime);">CASHIER POS</span>
+        </div>
+        <h3 class="role-title">Canteen POS</h3>
+        <p class="role-desc">Walk-up counter ordering (80-90% volume), thermal slips, live capacity monitor.</p>
+        <div style="font-family:var(--mono);font-size:0.7rem;color:var(--acid-lime);font-weight:700;">
+          Target: /pos
+        </div>
+      </div>
+
+      <!-- Role 3: Kitchen Tablet KDS -->
+      <div class="role-tile" id="role-tile-kds" onclick="selectRole('kds')">
+        <div class="role-icon-banner">
+          <span class="role-icon">🍳</span>
+          <span class="brand-badge" style="color:var(--hazard-orange);border-color:var(--hazard-orange);">KDS DISPLAY</span>
+        </div>
+        <h3 class="role-title">Kitchen Tablet</h3>
+        <p class="role-desc">4-stage preparation board, active batch cooking tally, student check-in alerts.</p>
+        <div style="font-family:var(--mono);font-size:0.7rem;color:var(--hazard-orange);font-weight:700;">
+          Target: /tablet
+        </div>
+      </div>
+
+      <!-- Role 4: Owner Admin -->
+      <div class="role-tile" id="role-tile-owner" onclick="selectRole('owner')">
+        <div class="role-icon-banner">
+          <span class="role-icon">🦊</span>
+          <span class="brand-badge" style="color:var(--violent-neon);border-color:var(--violent-neon);">OWNER PORTAL</span>
+        </div>
+        <h3 class="role-title">Owner Admin</h3>
+        <p class="role-desc">Authorize tablet devices on Monad, fund gas budgets, manage price schedule.</p>
+        <div style="font-family:var(--mono);font-size:0.7rem;color:var(--violent-neon);font-weight:700;">
+          Target: /setup
+        </div>
+      </div>
+    </div>
+
+    <!-- Login Form Card -->
+    <div class="login-box" id="login-container">
+      <div style="display:flex;justify-content:space-between;align-items:center;border-bottom:2.5px solid #000;padding-bottom:12px;margin-bottom:16px;">
+        <div>
+          <span class="brand-badge" id="form-role-badge" style="background:var(--acid-lime);color:#000;font-weight:900;">
+            ROLE: CANTEEN POS
+          </span>
+          <h3 style="font-family:var(--serif);font-size:1.3rem;font-weight:800;margin:6px 0 0 0;color:#ffffff;" id="form-role-title">
+            Counter Cashier Terminal Login
+          </h3>
+        </div>
+        <span class="pill ok" id="session-status-pill">Ready to Authenticate</span>
+      </div>
+
+      <form onsubmit="handleLoginSubmit(event)" style="display:flex;flex-direction:column;gap:14px;">
+        <!-- Username / Terminal ID -->
+        <div>
+          <label style="font-family:var(--mono);font-size:0.75rem;text-transform:uppercase;font-weight:800;color:var(--cream-dim);display:block;margin-bottom:4px;" id="label-username">
+            Cashier Terminal ID / Email
+          </label>
+          <input type="text" id="input-username" value="pos@canteen.edu" placeholder="pos@canteen.edu" style="font-family:var(--mono);font-size:0.95rem;padding:12px 14px;" required>
+        </div>
+
+        <!-- Password / PIN -->
+        <div>
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;">
+            <label style="font-family:var(--mono);font-size:0.75rem;text-transform:uppercase;font-weight:800;color:var(--cream-dim);" id="label-password">
+              Terminal PIN / Password
+            </label>
+            <button type="button" class="quiet" onclick="togglePasswordVisibility()" style="padding:2px 8px;font-size:0.7rem;">Show PIN</button>
+          </div>
+          <input type="password" id="input-password" value="pos123" placeholder="Enter password or PIN" style="font-family:var(--mono);font-size:0.95rem;padding:12px 14px;" required>
+        </div>
+
+        <!-- Feedback Alert Banner -->
+        <div id="login-alert" style="display:none;padding:10px 14px;border:2px solid #000;border-radius:var(--radius-xs);font-family:var(--mono);font-size:0.82rem;font-weight:700;"></div>
+
+        <!-- Submit Button -->
+        <button type="submit" id="btn-login-submit" style="background:var(--acid-lime);color:#000;font-size:1.05rem;font-weight:900;padding:14px;box-shadow:4px 4px 0px #000;margin-top:4px;">
+          ⚡ AUTHENTICATE & ENTER TERMINAL
+        </button>
+      </form>
+
+      <!-- Quick-Fill Presets for Frictionless Evaluation -->
+      <div style="margin-top:20px;border-top:1.5px dashed var(--line-alt);padding-top:14px;">
+        <div style="font-family:var(--mono);font-size:0.72rem;color:var(--cream-dim);text-transform:uppercase;font-weight:700;margin-bottom:8px;">
+          ⚡ Quick-Fill Demo Credentials:
+        </div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;">
+          <button type="button" class="quick-preset-pill" onclick="quickFill('pos')">
+            ⚡ POS: pos@canteen.edu / pos123
+          </button>
+          <button type="button" class="quick-preset-pill" onclick="quickFill('kds')">
+            🍳 Kitchen: kitchen@canteen.edu / kitchen123
+          </button>
+          <button type="button" class="quick-preset-pill" onclick="quickFill('student')">
+            🎒 Student: student@kccemsr.edu.in / student123
+          </button>
+          <button type="button" class="quick-preset-pill" onclick="quickFill('owner')">
+            🦊 Owner: admin@canteen.edu / admin123
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- System Guarantee Strip -->
+    <div style="margin-top:24px;background:#0d0a1b;border:2px solid #000;border-radius:var(--radius-sm);padding:14px 18px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px;box-shadow:4px 4px 0px #000;">
+      <div>
+        <div style="font-weight:800;font-size:0.9rem;color:#ffffff;">Monad Sub-Second Finality</div>
+        <div style="font-size:0.78rem;color:var(--cream-dim);margin-top:2px;">
+          CanteenOrders Contract: <span style="font-family:var(--mono);color:var(--acid-lime);">0x83edd38e28e43c608c0d30b60a03adac1eacbc33</span>
+        </div>
+      </div>
+      <div style="display:flex;gap:8px;">
+        <span class="pill ok">EIP-712 Handshake</span>
+        <span class="pill">Gas: ~0.0001 MON</span>
+      </div>
+    </div>
+  </main>
+
+  <script>
+    let currentRole = 'pos';
+
+    const ROLE_CONFIGS = {
+      pos: {
+        title: 'Counter Cashier Terminal Login',
+        badge: 'ROLE: CANTEEN POS',
+        badgeColor: 'var(--acid-lime)',
+        userLabel: 'Cashier Terminal ID / Email',
+        defaultUser: 'pos@canteen.edu',
+        defaultPass: 'pos123',
+        btnText: '⚡ ENTER CANTEEN POS TERMINAL',
+        btnBg: 'var(--acid-lime)',
+        tileClass: 'active-pos',
+        redirect: '/pos'
+      },
+      kds: {
+        title: 'Kitchen Display System (KDS) Tablet Login',
+        badge: 'ROLE: KITCHEN TABLET',
+        badgeColor: 'var(--hazard-orange)',
+        userLabel: 'Kitchen Chef Username / ID',
+        defaultUser: 'kitchen@canteen.edu',
+        defaultPass: 'kitchen123',
+        btnText: '🍳 ENTER KITCHEN PREP BOARD',
+        btnBg: 'var(--hazard-orange)',
+        tileClass: 'active-kds',
+        redirect: '/tablet'
+      },
+      student: {
+        title: 'Student Pre-Order PWA Login',
+        badge: 'ROLE: STUDENT PRE-ORDER',
+        badgeColor: 'var(--electric-cyan)',
+        userLabel: 'College .edu.in Email Address',
+        defaultUser: 'student@kccemsr.edu.in',
+        defaultPass: 'student123',
+        btnText: '🎒 ENTER STUDENT MENU',
+        btnBg: 'var(--electric-cyan)',
+        tileClass: 'active-student',
+        redirect: '/'
+      },
+      owner: {
+        title: 'Contract Owner Admin Setup',
+        badge: 'ROLE: OWNER ADMIN',
+        badgeColor: 'var(--violent-neon)',
+        userLabel: 'Admin ID / Deployer Username',
+        defaultUser: 'admin@canteen.edu',
+        defaultPass: 'admin123',
+        btnText: '🦊 ENTER OWNER PORTAL',
+        btnBg: 'var(--violent-neon)',
+        tileClass: 'active-owner',
+        redirect: '/setup'
+      }
+    };
+
+    function selectRole(role) {
+      currentRole = role;
+      const cfg = ROLE_CONFIGS[role];
+
+      // Update tile highlights
+      document.querySelectorAll('.role-tile').forEach(t => {
+        t.classList.remove('active-student', 'active-pos', 'active-kds', 'active-owner');
+      });
+      const activeTile = document.getElementById('role-tile-' + role);
+      if (activeTile) activeTile.classList.add(cfg.tileClass);
+
+      // Update form styling & labels
+      document.getElementById('form-role-title').textContent = cfg.title;
+      const badge = document.getElementById('form-role-badge');
+      badge.textContent = cfg.badge;
+      badge.style.background = cfg.badgeColor;
+
+      document.getElementById('label-username').textContent = cfg.userLabel;
+      document.getElementById('input-username').value = cfg.defaultUser;
+      document.getElementById('input-username').placeholder = cfg.defaultUser;
+      document.getElementById('input-password').value = cfg.defaultPass;
+
+      const submitBtn = document.getElementById('btn-login-submit');
+      submitBtn.textContent = cfg.btnText;
+      submitBtn.style.background = cfg.btnBg;
+
+      hideAlert();
+    }
+
+    function quickFill(role) {
+      selectRole(role);
+      const alert = document.getElementById('login-alert');
+      alert.style.display = 'block';
+      alert.style.background = 'rgba(204, 255, 0, 0.15)';
+      alert.style.borderColor = 'var(--acid-lime)';
+      alert.style.color = '#ffffff';
+      alert.textContent = `Credentials filled for ${ROLE_CONFIGS[role].badge}! Click "Authenticate" to proceed.`;
+    }
+
+    function togglePasswordVisibility() {
+      const pass = document.getElementById('input-password');
+      pass.type = pass.type === 'password' ? 'text' : 'password';
+    }
+
+    function hideAlert() {
+      document.getElementById('login-alert').style.display = 'none';
+    }
+
+    async function handleLoginSubmit(e) {
+      e.preventDefault();
+      const username = document.getElementById('input-username').value.trim();
+      const password = document.getElementById('input-password').value.trim();
+      const btn = document.getElementById('btn-login-submit');
+      const alertEl = document.getElementById('login-alert');
+
+      btn.disabled = true;
+      btn.textContent = 'Verifying Credentials...';
+
+      try {
+        const res = await fetch('/api/auth/login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            role: currentRole,
+            username,
+            password
+          })
+        });
+
+        const data = await res.json();
+        if (!res.ok) {
+          throw new Error(data.error || 'Authentication failed');
+        }
+
+        // Store session in localStorage
+        localStorage.setItem('canteenpos_auth_session', JSON.stringify({
+          token: data.token,
+          role: data.role,
+          user: data.user,
+          loginTime: new Date().toISOString()
+        }));
+
+        alertEl.style.display = 'block';
+        alertEl.style.background = 'rgba(0, 255, 136, 0.2)';
+        alertEl.style.borderColor = 'var(--ok)';
+        alertEl.style.color = '#ffffff';
+        alertEl.innerHTML = `✅ <strong>ACCESS GRANTED:</strong> Authenticated as ${data.user.name}. Redirecting...`;
+
+        setTimeout(() => {
+          window.location.href = data.redirectTo || ROLE_CONFIGS[currentRole].redirect;
+        }, 600);
+      } catch (err) {
+        alertEl.style.display = 'block';
+        alertEl.style.background = 'rgba(255, 0, 85, 0.2)';
+        alertEl.style.borderColor = 'var(--bad)';
+        alertEl.style.color = '#ffffff';
+        alertEl.innerHTML = `⚠️ <strong>ACCESS DENIED:</strong> ${err.message}`;
+        btn.disabled = false;
+        btn.textContent = ROLE_CONFIGS[currentRole].btnText;
+      }
+    }
+
+    // Default to POS on load or role query param
+    window.addEventListener('load', () => {
+      const params = new URLSearchParams(window.location.search);
+      const roleParam = params.get('role');
+      if (roleParam && ROLE_CONFIGS[roleParam]) {
+        selectRole(roleParam);
+      } else {
+        selectRole('pos');
+      }
+    });
+  </script>
+</body>
+</html>

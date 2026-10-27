@@ -76,6 +76,39 @@ describe('CanteenPOS HTTP API', () => {
     assert.equal(data.domainOk, true)
   })
 
+  test('POST /api/auth/login authenticates roles and rejects invalid credentials', async () => {
+    // POS Login
+    const posRes = await fetch(`${baseUrl}/api/auth/login`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ role: 'pos', username: 'pos@canteen.edu', password: 'pos123' }),
+    })
+    assert.equal(posRes.status, 200)
+    const posData = await posRes.json()
+    assert.equal(posData.ok, true)
+    assert.equal(posData.role, 'pos')
+    assert.equal(posData.redirectTo, '/pos')
+
+    // KDS Login
+    const kdsRes = await fetch(`${baseUrl}/api/auth/login`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ role: 'kds', username: 'kitchen@canteen.edu', password: 'kitchen123' }),
+    })
+    assert.equal(kdsRes.status, 200)
+    const kdsData = await kdsRes.json()
+    assert.equal(kdsData.role, 'kds')
+    assert.equal(kdsData.redirectTo, '/tablet')
+
+    // Bad Password
+    const badRes = await fetch(`${baseUrl}/api/auth/login`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ role: 'pos', username: 'pos@canteen.edu', password: 'wrongpassword' }),
+    })
+    assert.equal(badRes.status, 401)
+  })
+
   test('POST /api/demo/faucet grants demo tokens', async () => {
     const res = await fetch(`${baseUrl}/api/demo/faucet`, {
       method: 'POST',
