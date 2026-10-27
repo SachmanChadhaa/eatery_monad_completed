@@ -1,11 +1,12 @@
 # CanteenPOS · Zero-Loss Campus Canteen OS on Monad
 
 > **A fund-free, on-chain order state machine that turns morning canteen chaos into a paid, deterministic prep baseline.**  
-> Powered by Monad's sub-second finality and near-zero gas, EIP-712 offline presence signatures, and a high-voltage Neo-Violent Brutalist interface suite.
+> Powered by Monad's sub-second finality and near-zero gas, EIP-712 offline presence signatures, official Lucide icons, and a high-voltage Neo-Violent Brutalist interface suite.
 
 [![Monad Testnet](https://img.shields.io/badge/Monad%20Testnet-Chain%2010143-a855f7?style=for-the-badge&logo=ethereum)](https://testnet.monadvision.com/address/0x83edd38e28e43c608c0d30b60a03adac1eacbc33)
-[![Tests Passing](https://img.shields.io/badge/All%20Tests-119%2F119%20Passing-00ff88?style=for-the-badge)](https://github.com/sachmanchadha-ui/eatery_monad_completed)
+[![Tests Passing](https://img.shields.io/badge/All%20Tests-119%2F119%20Passing-00ff88?style=for-the-badge)](https://github.com/SachmanChadhaa/eatery_monad_completed)
 [![Design System](https://img.shields.io/badge/UI-Neo--Violent%20Brutalist-ccff00?style=for-the-badge)](#neo-violent-brutalist-design-system)
+[![Icons](https://img.shields.io/badge/Icons-Lucide%20Icons-00f0ff?style=for-the-badge)](https://lucide.dev)
 
 ---
 
@@ -22,6 +23,8 @@ A college campus canteen cooks on intuition. Two catastrophic operational losses
 - **No-Show Forfeiture:** An unclaimed pre-order forfeits to the canteen after the claim window plus grace period. No-show loss is eliminated.
 - **Two-Way EIP-712 Check-in Handshake:** At the counter, the student's phone and canteen tablet perform a cryptographic challenge-response handshake. Even if the student's phone loses network in a basement cafeteria, signing works completely offline.
 - **Fund-Free Smart Contract:** Rupees never touch the smart contract. The contract operates strictly as the public, tamper-proof rulebook and ledger. Off-chain payments and refunds are handled through the merchant's Razorpay or crypto vault and logged on-chain.
+- **Strict Separation of Privileges & Auth Guards:** No cross-role shortcuts exist in the headers. Users cannot jump between Student, POS, KDS, and Owner interfaces without explicitly logging out and authenticating through `/login`.
+- **Vector Iconography:** Powered by official Lucide icons across all screens—no raw emojis are used.
 
 ---
 
@@ -42,9 +45,9 @@ CanteenPOS provides a complete ecosystem connecting students, kitchen chefs, cou
 |   STUDENT MENU     |  |   CANTEEN POS      |                  |   KITCHEN TABLET   |
 |   / or /student    |  |   /pos or /canteen |                  |   /tablet or /kds  |
 | - Browse cart menu |  | - Walk-in POS desk |                  | - 4-stage prep KDS |
-| - Slot picker (30%)|  | - Thermal receipts |                  | - Active cook tally|
-| - Offline proof QR |  | - Slot cap monitor |                  | - Sound alerts     |
-| - Token pass slip  |  | - Menu stock toggle|                  | - Morning baseline |
+| - Slot picker (30%)|  | - Counter QR screen|                  | - Active cook tally|
+| - Camera check-in  |  | - Table assignment |                  | - Sound alerts     |
+| - Token pass slip  |  | - Thermal receipts |                  | - Morning baseline |
 +--------------------+  +--------------------+                  +--------------------+
                                  |                                        |
                                  +-------------------+--------------------+
@@ -61,16 +64,22 @@ CanteenPOS provides a complete ecosystem connecting students, kitchen chefs, cou
 
 ### 1. Unified Access Gateway (`/login`)
 * **Role-Based Authentication:** Single brutalist entry portal to authenticate into Student, POS, KDS, or Owner interfaces.
+* **Strict Auth Guards:** Visiting `/`, `/pos`, `/tablet`, or `/setup` without an active matching session immediately redirects to `/login?role=<role>`. Direct inter-role shortcuts have been removed; users must click `[Log Out]` to switch roles.
 * **1-Click Quick-Fill Demo Bar:** Evaluators can click one button to auto-fill credentials for any role and log in instantly.
 * **Session Persistence:** Origin-bound session tokens stored locally to display active user credentials across terminals.
 
 ### 2. Student Pre-Order PWA (`/` or `/student`)
 * **Pre-order Cart:** Max 4 lines per order.
 * **Slot Capacity Reservation:** Real-time remaining portion counts against the 30% on-chain cap.
-* **Offline Counter Check-in:** Origin-bound secp256k1 session key in IndexedDB. Students can scan the tablet's rotating challenge and generate their response QR with zero cellular reception.
+* **In-Person Counter Check-In:** Students scan the rotating challenge displayed at the canteen counter using their phone camera or image upload.
+* **Offline Presence Signing:** Signs `CheckIn(orderId, challengeHash)` using origin-bound secp256k1 session key in IndexedDB with zero cellular reception.
 * **Token Slip & MonadVision Link:** Displays assigned token `#` (e.g. `12:30 · #14`) and direct on-chain verification links.
 
 ### 3. College Canteen POS & Operations Dashboard (`/pos` or `/canteen`)
+* **Physical Counter QR Display & Table Check-In Simulation:**
+  * Displays the live rotating challenge QR broadcast at Pickup Counter #1.
+  * Allows counter cashier or evaluator to simulate a student scanning the counter QR (`[Check In at Counter & Assign Table]`), cryptographically verifying presence and assigning a physical dining hall table (`Table #4 (Zone A)`).
+  * Automatically dispatches checked-in orders to the kitchen KDS with audio confirmation!
 * **Cashier Quick-Order POS:** Fast counter ordering terminal for the 70–80% walk-up students. Generates instant token numbers, prints thermal receipt slips, and pushes orders directly to the kitchen display.
 * **Thermal Paper Receipt Modal:** Authentic neo-brutalist thermal paper receipt slip with jagged tear edges, giant token banner, customer ID, itemized lines, and barcode simulation.
 * **Operations Analytics:** Real-time counters for Pre-orders vs Walk-ins, total revenue (₹ and MON), orders actively cooking, orders ready at counter, and refund liability exposure.
@@ -79,17 +88,17 @@ CanteenPOS provides a complete ecosystem connecting students, kitchen chefs, cou
 
 ### 4. Kitchen Tablet System / KDS (`/tablet` or `/kitchen`)
 * **4-Stage Interactive Preparation Board ("See orders and prepare them"):**
-  1. **📋 To Cook (Queued):** Incoming pre-orders and POS walk-in tickets. Chef taps `[🍳 Start Cooking]` to claim ticket.
-  2. **🍳 In Prep (Cooking):** Active orders on the grill/fryer with pulsing amber border and live elapsed cooking stopwatch (`Cooking: Xm`). Features interactive checklist to cross off items as they finish. Chef taps `[✅ Mark Ready / Plated]` when plated.
-  3. **🛎️ Ready / Counter Pickup:** Plated food on pickup racks.
-     * **Student Arrival Alert:** When the student arrives and checks in at the counter, the ticket pulses in cyber-green with banner `🛎️ AT COUNTER · READY FOR HANDOVER` and plays a distinct chime!
-     * **Overdue Penalty Alert (Spec 8.3):** If an order is checked in for > 10 min without being served, ticket flashes red (`⚠️ URGENT (>10m)! SERVE BEFORE GRACE EXPIRES`) to avoid automatic refund owes.
-     * Chef taps `[📦 Hand Over & Mark Served]` to submit [`markServed`](file:///G:/eatery_monad_completed/packages/backend/src/api.ts#L398) to Monad!
-  4. **✅ Served:** Archive of completed orders.
-* **Active Batch Prep Tally Bar:** Header aggregates all pending dishes across active tickets (e.g. `🍳 BATCH PREP TALLY: 5x Mumbai Vada Pav · 3x Masala Dosa · 8x Masala Chai`).
+  1. **To Cook (Queued):** Incoming pre-orders and POS walk-in tickets. Chef taps `[Start Cooking]` to claim ticket.
+  2. **In Prep (Cooking):** Active orders on the grill/fryer with pulsing amber border and live elapsed cooking stopwatch (`Cooking: Xm`). Features interactive checklist to cross off items as they finish. Chef taps `[Mark Ready / Plated]` when plated.
+  3. **Ready / Counter Pickup:** Plated food on pickup racks.
+     * **Student Arrival Alert:** When the student arrives and checks in at the counter, the ticket pulses in cyber-green with banner `AT COUNTER · READY FOR HANDOVER` and plays a distinct chime!
+     * **Overdue Penalty Alert (Spec 8.3):** If an order is checked in for > 10 min without being served, ticket flashes red (`URGENT (>10m)! SERVE BEFORE GRACE EXPIRES`) to avoid automatic refund owes.
+     * Chef taps `[Hand Over & Serve]` to submit [`markServed`](file:///G:/eatery_monad_completed/packages/backend/src/api.ts#L398) to Monad!
+  4. **Served:** Archive of completed orders.
+* **Active Batch Prep Tally Bar:** Header aggregates all pending dishes across active tickets (e.g. `BATCH PREP TALLY: 5x Mumbai Vada Pav · 3x Masala Dosa · 8x Masala Chai`).
 * **Morning Baseline Prep Summary:** Aggregated morning demand from `getSlotDemand` locked at 09:00 IST for advance batch cooking.
-* **Web Audio Chimes:** Built-in multi-frequency audio alerts (new order, student checked-in, urgent alert) with mute toggle (`🔔 Audio: ON/OFF`).
-* **Kiosk Mode:** `[⛶ Kiosk]` button for fullscreen tablet mounting.
+* **Web Audio Chimes:** Built-in multi-frequency audio alerts (new order, student checked-in, urgent alert) with mute toggle (`Audio: ON/OFF`).
+* **Kiosk Mode:** `[Kiosk]` button for fullscreen tablet mounting.
 
 ### 5. Owner Admin Portal (`/setup`)
 * Injected MetaMask connector for owner key.

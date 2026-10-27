@@ -8,6 +8,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:ital,wght@0,400;0,600;0,700;0,800;1,700&family=Space+Grotesk:wght@500;600;700;800;900&family=Syne:wght@700;800;900&display=swap">
   <link rel="stylesheet" href="/styles.css">
+  <script src="/lucide.js"></script>
   <script src="/qr-engine.js"></script>
 </head>
 <body>
@@ -24,10 +25,14 @@
       <span class="brand-badge">PORTAL /SETUP</span>
     </div>
     <div class="nav-links">
-      <a href="/pos" class="nav-btn" style="color:var(--acid-lime);border:1px solid var(--acid-lime);">Canteen POS ↗</a>
-      <a href="/tablet" class="nav-btn" style="color:var(--hazard-orange);border:1px solid var(--hazard-orange);">Kitchen KDS ↗</a>
-      <a href="/" class="nav-btn" style="color:var(--electric-cyan);">Student Menu ↗</a>
-      <span class="pill ok" id="owner-status-pill">Deployer Key Connected</span>
+      <div style="display:flex;align-items:center;gap:8px;">
+        <span class="pill ok" id="owner-status-pill" style="display:inline-flex;align-items:center;gap:6px;">
+          <i data-lucide="shield-check" class="lucide-sm"></i> <span id="owner-name-display">Deployer Key Connected</span>
+        </span>
+        <button type="button" onclick="logoutSession()" class="nav-btn" style="color:var(--bad);border:1.5px solid var(--bad);padding:4px 10px;font-size:0.75rem;cursor:pointer;display:inline-flex;align-items:center;gap:4px;">
+          <i data-lucide="log-out" class="lucide-sm"></i> Log Out
+        </button>
+      </div>
     </div>
   </header>
 
@@ -92,6 +97,37 @@
   </main>
 
   <script>
+    function enforceOwnerAuth() {
+      try {
+        const sessionRaw = localStorage.getItem('canteenpos_auth_session');
+        if (!sessionRaw) {
+          window.location.replace('/login?role=owner');
+          return null;
+        }
+        const session = JSON.parse(sessionRaw);
+        if (!session || session.role !== 'owner') {
+          window.location.replace('/login?role=owner');
+          return null;
+        }
+        return session;
+      } catch (e) {
+        window.location.replace('/login?role=owner');
+        return null;
+      }
+    }
+    const currentAuthSession = enforceOwnerAuth();
+
+    function logoutSession() {
+      localStorage.removeItem('canteenpos_auth_session');
+      window.location.href = '/login?role=owner';
+    }
+
+    function renderIcons() {
+      if (window.lucide && typeof window.lucide.createIcons === 'function') {
+        window.lucide.createIcons();
+      }
+    }
+
     async function loadHealth() {
       const res = await fetch('/api/health');
       const data = await res.json();
@@ -185,9 +221,17 @@
     }
 
     window.addEventListener('load', () => {
+      try {
+        const sess = JSON.parse(localStorage.getItem('canteenpos_auth_session') || '{}');
+        if (sess.user && sess.user.name) {
+          const el = document.getElementById('owner-name-display');
+          if (el) el.textContent = sess.user.name.split('(')[0].trim();
+        }
+      } catch (_) {}
       loadHealth();
       loadDevices();
       loadSchedule();
+      renderIcons();
     });
   </script>
 </body>
