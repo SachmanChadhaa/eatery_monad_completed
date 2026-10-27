@@ -5,13 +5,20 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <title>CanteenPOS · Student Pre-Order PWA</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Newsreader:opsz,wght@6..72,500;6..72,600&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:ital,wght@0,400;0,600;0,700;0,800;1,700&family=Space+Grotesk:wght@500;600;700;800;900&family=Syne:wght@700;800;900&display=swap">
   <link rel="stylesheet" href="/styles.css">
   <script src="/noble-secp256k1.js"></script>
   <script src="/jsqr.js"></script>
   <script src="/qr-engine.js"></script>
 </head>
 <body>
+  <!-- Ticker Tape Marquee -->
+  <div class="hazard-strip">
+    <div class="hazard-strip-inner">
+      /// CANTEEN MONAD KDS v2.0 /// 10,000 TPS PARALLEL EVM /// SUB-SECOND FINALITY /// ZERO-GAS TABLE CHECK-IN /// 30% PRE-ORDER HARD CAP /// STATUS: LIVE ON MONAD TESTNET /// CANTEEN MONAD KDS v2.0 /// 10,000 TPS PARALLEL EVM /// SUB-SECOND FINALITY /// ZERO-GAS TABLE CHECK-IN /// 30% PRE-ORDER HARD CAP /// STATUS: LIVE ON MONAD TESTNET ///
+    </div>
+  </div>
   <!-- Header Navigation -->
   <header class="header-bar">
     <div class="brand-group">
@@ -19,18 +26,20 @@
       <span class="brand-badge">MONAD TESTNET</span>
     </div>
     <div style="display:flex;align-items:center;gap:12px;">
-      <button id="btn-metamask" onclick="connectMetaMask()" style="display:inline-flex;align-items:center;gap:6px;background:var(--crail);color:var(--cream);border-radius:20px;padding:6px 14px;font-size:0.82rem;font-weight:600;border:none;cursor:pointer;">
+      <button id="btn-metamask" onclick="connectMetaMask()" style="display:inline-flex;align-items:center;gap:8px;background:var(--violent-neon);color:#000000;border:2.5px solid #000000;border-radius:var(--radius-sm);padding:8px 16px;font-size:0.84rem;font-weight:800;box-shadow:3px 3px 0px #000000;cursor:pointer;">
         <span>🦊</span> Connect MetaMask
       </button>
-      <div id="wallet-pill" style="display:none;align-items:center;gap:8px;background:var(--surface);border:1px solid var(--peach);border-radius:20px;padding:4px 12px;font-family:var(--mono);font-size:0.78rem;">
-        <span id="wallet-mon-bal" style="color:var(--peach);font-weight:700;">0.00 MON</span>
-        <span id="wallet-address-pill" style="color:var(--cream-dim);">0x...</span>
+      <div id="wallet-pill" style="display:none;align-items:center;gap:10px;background:var(--surface-elevated);border:2.5px solid #000000;border-radius:var(--radius-sm);padding:6px 14px;font-family:var(--mono);font-size:0.8rem;box-shadow:3px 3px 0px #000000;">
+        <span id="wallet-mon-bal" style="color:var(--acid-lime);font-weight:800;">0.00 MON</span>
+        <span id="wallet-address-pill" style="color:var(--violent-light);font-weight:700;">0x...</span>
       </div>
       <div class="nav-links">
         <button class="nav-btn active" id="tab-order" onclick="switchView('order')">Menu</button>
         <button class="nav-btn" id="tab-checkin" onclick="switchView('checkin')">Check-in</button>
         <button class="nav-btn" id="tab-orders" onclick="switchView('orders')">Orders</button>
         <button class="nav-btn" id="tab-settings" onclick="switchView('settings')">Settings</button>
+        <a href="/pos" class="nav-btn" style="color:var(--acid-lime);border:1px solid var(--acid-lime);">POS ↗</a>
+        <a href="/tablet" class="nav-btn" style="color:var(--hazard-orange);border:1px solid var(--hazard-orange);">KDS ↗</a>
       </div>
     </div>
   </header>

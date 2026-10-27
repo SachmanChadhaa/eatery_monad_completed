@@ -101,4 +101,88 @@ describe('CanteenPOS HTTP API', () => {
     const data = await res.json()
     assert.ok(Array.isArray(data))
   })
+
+  test('POST /api/pos/order creates walk-in counter order and returns token', async () => {
+    const res = await fetch(`${baseUrl}/api/pos/order`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        customerName: 'Rahul Sharma (Roll 42)',
+        slotId: 0,
+        paymentMethod: 'UPI',
+        lines: [
+          { itemId: 1, qty: 2, pricePaise: 2000 },
+          { itemId: 4, qty: 1, pricePaise: 1000 },
+        ],
+      }),
+    })
+    assert.equal(res.status, 201)
+    const data = await res.json()
+    assert.equal(data.ok, true)
+    assert.ok(data.orderId >= 10000)
+    assert.ok(data.tokenNo >= 1)
+    assert.equal(data.totalPaise, 4000) // (2 * 1500) + (1 * 1000)
+  })
+
+  test('GET /api/pos/analytics returns operational overview and capacity metrics', async () => {
+    const res = await fetch(`${baseUrl}/api/pos/analytics`)
+    assert.equal(res.status, 200)
+    const data = await res.json()
+    assert.ok(data.summary)
+    assert.ok(data.summary.totalOrders >= 1)
+    assert.ok(data.summary.walkinsCount >= 1)
+    assert.ok(Array.isArray(data.slots))
+    assert.ok(data.slots.length >= 2)
+  })
+
+  test('POST /api/kds/prep-status and GET /api/kds/queue handle preparation lifecycle', async () => {
+    // 1. Create order
+    const orderRes = await fetch(`${baseUrl}/api/pos/order`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        customerName: 'Aarav Patel',
+        slotId: 0,
+        lines: [{ itemId: 2, qty: 1, pricePaise: 3000 }],
+      }),
+    })
+    const orderData = await orderRes.json()
+    const orderId = orderData.orderId
+
+    // 2. Mark Preparing
+    const prepRes = await fetch(`${baseUrl}/api/kds/prep-status`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ orderId, prepStatus: 'Preparing' }),
+    })
+    assert.equal(prepRes.status, 200)
+    const prepData = await prepRes.json()
+    assert.equal(prepData.prepStatus, 'Preparing')
+
+    // 3. Mark Ready
+    const readyRes = await fetch(`${baseUrl}/api/kds/prep-status`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ orderId, prepStatus: 'Ready' }),
+    })
+    assert.equal(readyRes.status, 200)
+
+    // 4. Verify in queue
+    const queueRes = await fetch(`${baseUrl}/api/kds/queue`)
+    assert.equal(queueRes.status, 200)
+    const queueData = await queueRes.json()
+    const target = queueData.find((o: any) => o.order_id === orderId)
+    assert.ok(target)
+    assert.equal(target.prep_status, 'Ready')
+    assert.equal(target.order_source, 'walkin')
+    assert.ok(target.lines.length >= 1)
+
+    // 5. Mark Served
+    const serveRes = await fetch(`${baseUrl}/api/kds/prep-status`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ orderId, prepStatus: 'Served' }),
+    })
+    assert.equal(serveRes.status, 200)
+  })
 })

@@ -148,4 +148,9 @@ create table if not exists item_availability (
 );
 
 create index if not exists intents_open on intents (day_id, slot_id) where status in ('reserved', 'paid');
+alter table orders add column if not exists prep_status text default 'Queued';
+alter table orders add column if not exists prep_started_at timestamptz;
+alter table orders add column if not exists prep_ready_at timestamptz;
+alter table orders add column if not exists order_source text default 'preorder';
+alter table orders add column if not exists customer_name text;
 `

@@ -5,17 +5,28 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <title>CanteenPOS · Owner Admin Portal</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Newsreader:opsz,wght@6..72,500;6..72,600&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:ital,wght@0,400;0,600;0,700;0,800;1,700&family=Space+Grotesk:wght@500;600;700;800;900&family=Syne:wght@700;800;900&display=swap">
   <link rel="stylesheet" href="/styles.css">
   <script src="/qr-engine.js"></script>
 </head>
 <body>
+  <!-- Ticker Tape Marquee -->
+  <div class="hazard-strip">
+    <div class="hazard-strip-inner">
+      /// CANTEENPOS ADMIN CONTROL /// MONAD CONTRACT ROLES & DEVICE REGISTRY /// FAST GAS FUNDING /// SEPARATION OF PRIVILEGE /// CANTEENPOS ADMIN CONTROL /// MONAD CONTRACT ROLES & DEVICE REGISTRY /// FAST GAS FUNDING /// SEPARATION OF PRIVILEGE ///
+    </div>
+  </div>
+
   <header class="header-bar">
     <div class="brand-group">
       <h1 class="brand-title">Owner Admin</h1>
       <span class="brand-badge">PORTAL /SETUP</span>
     </div>
     <div class="nav-links">
+      <a href="/pos" class="nav-btn" style="color:var(--acid-lime);border:1px solid var(--acid-lime);">Canteen POS ↗</a>
+      <a href="/tablet" class="nav-btn" style="color:var(--hazard-orange);border:1px solid var(--hazard-orange);">Kitchen KDS ↗</a>
+      <a href="/" class="nav-btn" style="color:var(--electric-cyan);">Student Menu ↗</a>
       <span class="pill ok" id="owner-status-pill">Deployer Key Connected</span>
     </div>
   </header>

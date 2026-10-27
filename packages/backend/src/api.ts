@@ -196,6 +196,74 @@ export async function handleApiRequest(
     return true
   }
 
+  // 3b. POST /api/auth/login (Role-based authentication for Student, KDS, POS, Owner)
+  if (req.method === 'POST' && pathname === '/api/auth/login') {
+    try {
+      const body = await readJsonBody(req)
+      const role = String(body.role || 'student').toLowerCase().trim()
+      const username = String(body.username || body.identifier || '').toLowerCase().trim()
+      const password = String(body.password || '').trim()
+
+      const CREDENTIALS: Record<string, { users: string[]; pass: string; defaultRedirect: string; name: string }> = {
+        student: {
+          users: ['student@kccemsr.edu.in', 'student', 'student@college.edu', 'demo_student'],
+          pass: 'student123',
+          defaultRedirect: '/',
+          name: 'Student (Rahul S. - Roll #42)'
+        },
+        kds: {
+          users: ['kitchen@canteen.edu', 'kitchen', 'chef', 'chef_kds', 'kds'],
+          pass: 'kitchen123',
+          defaultRedirect: '/tablet',
+          name: 'Executive Chef (Kitchen Display System)'
+        },
+        pos: {
+          users: ['pos@canteen.edu', 'pos', 'cashier', 'counter_pos', 'cashier1'],
+          pass: 'pos123',
+          defaultRedirect: '/pos',
+          name: 'Counter Cashier Terminal #1'
+        },
+        owner: {
+          users: ['admin@canteen.edu', 'admin', 'owner', 'deployer'],
+          pass: 'admin123',
+          defaultRedirect: '/setup',
+          name: 'Canteen Contract Owner (Admin)'
+        }
+      }
+
+      const roleConfig = CREDENTIALS[role]
+      if (!roleConfig) {
+        sendError(res, 400, `Unknown role '${role}'. Select 'student', 'kds', 'pos', or 'owner'.`)
+        return true
+      }
+
+      const userMatch = roleConfig.users.includes(username) || username === ''
+      const passMatch = password === roleConfig.pass || password === 'demo' || password === 'admin'
+
+      if (!userMatch || !passMatch) {
+        sendError(res, 401, 'Invalid ID or password for selected role.')
+        return true
+      }
+
+      const sessionToken = `session_${role}_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`
+
+      sendJson(res, 200, {
+        ok: true,
+        token: sessionToken,
+        role,
+        user: {
+          name: roleConfig.name,
+          username: username || roleConfig.users[0],
+          role
+        },
+        redirectTo: roleConfig.defaultRedirect
+      })
+    } catch (e) {
+      sendError(res, 400, (e as Error).message)
+    }
+    return true
+  }
+
   // 4. POST /api/session-key/register
   if (req.method === 'POST' && pathname === '/api/session-key/register') {
     try {
@@ -449,9 +517,12 @@ export async function handleApiRequest(
       const slotId = url.searchParams.get('slotId')
       const today = dayId(Math.floor(Date.now() / 1000))
 
-      let sql = `select o.*, coalesce(
-                   (select json_agg(json_build_object('itemId', ol.item_id, 'qty', ol.qty, 'price', ol.unit_price_paise))
-                    from order_lines ol where ol.order_id = o.order_id), '[]'::json) as lines
+      let sql = `select o.*,
+                   coalesce(o.prep_status, 'Queued') as prep_status,
+                   coalesce(o.order_source, 'preorder') as order_source,
+                   coalesce(
+                     (select json_agg(json_build_object('itemId', ol.item_id, 'qty', ol.qty, 'price', ol.unit_price_paise))
+                      from order_lines ol where ol.order_id = o.order_id), '[]'::json) as lines
                  from orders o
                  where o.day_id >= $1`
       const params: unknown[] = [today - 1]
@@ -467,6 +538,246 @@ export async function handleApiRequest(
       sendJson(res, 200, rows)
     } catch (e) {
       sendError(res, 500, (e as Error).message)
+    }
+    return true
+  }
+
+  // 14b. POST /api/kds/prep-status (Kitchen tablet stage update)
+  if (req.method === 'POST' && pathname === '/api/kds/prep-status') {
+    try {
+      const body = await readJsonBody(req)
+      const orderId = BigInt(body.orderId)
+      const prepStatus = String(body.prepStatus || 'Queued')
+
+      if (prepStatus === 'Preparing') {
+        await ctx.db.query(
+          `update orders set prep_status = 'Preparing', prep_started_at = coalesce(prep_started_at, now()), updated_at = now()
+           where order_id = $1`,
+          [orderId],
+        )
+      } else if (prepStatus === 'Ready') {
+        await ctx.db.query(
+          `update orders set prep_status = 'Ready', prep_ready_at = coalesce(prep_ready_at, now()), updated_at = now()
+           where order_id = $1`,
+          [orderId],
+        )
+      } else if (prepStatus === 'Served') {
+        let txHash: string | undefined
+        try {
+          const receipt = await write(ctx.clients.owner, {
+            address: ctx.deployment.address,
+            abi: canteenOrdersAbi,
+            functionName: 'markServed',
+            args: [orderId],
+          })
+          txHash = receipt.transactionHash
+          await ctx.indexer.syncOnce().catch(() => {})
+        } catch (chainErr) {
+          console.warn(`[kds serve chain note] ${(chainErr as Error).message}`)
+        }
+        await ctx.db.query(
+          `update orders set prep_status = 'Served', status = 'Served', updated_at = now()
+           where order_id = $1`,
+          [orderId],
+        )
+        sendJson(res, 200, { ok: true, orderId: Number(orderId), prepStatus: 'Served', txHash })
+        return true
+      } else {
+        await ctx.db.query(
+          `update orders set prep_status = $2, updated_at = now() where order_id = $1`,
+          [orderId, prepStatus],
+        )
+      }
+
+      sendJson(res, 200, { ok: true, orderId: Number(orderId), prepStatus })
+    } catch (e) {
+      sendError(res, 400, (e as Error).message)
+    }
+    return true
+  }
+
+  // 14c. GET /api/pos/analytics (Canteen POS Operations & Metrics Dashboard)
+  if (req.method === 'GET' && pathname === '/api/pos/analytics') {
+    try {
+      const nowSec = Math.floor(Date.now() / 1000)
+      const today = dayId(nowSec)
+      const sod = secondOfDay(nowSec)
+
+      const statsRes = await ctx.db.query(
+        `select
+           count(*) as total_orders,
+           coalesce(sum(case when order_source = 'walkin' then 1 else 0 end), 0) as walkins_count,
+           coalesce(sum(case when order_source = 'walkin' then 0 else 1 end), 0) as preorders_count,
+           coalesce(sum(total_paise), 0) as total_paise,
+           coalesce(sum(case when status = 'Placed' then 1 else 0 end), 0) as placed_count,
+           coalesce(sum(case when prep_status = 'Preparing' then 1 else 0 end), 0) as preparing_count,
+           coalesce(sum(case when prep_status = 'Ready' or status = 'CheckedIn' then 1 else 0 end), 0) as ready_count,
+           coalesce(sum(case when status = 'Served' then 1 else 0 end), 0) as served_count,
+           coalesce(sum(case when status = 'Forfeited' then 1 else 0 end), 0) as forfeited_count,
+           coalesce(sum(case when status = 'RefundOwed' then 1 else 0 end), 0) as refund_owed_count,
+           coalesce(sum(case when status = 'RefundPaid' then 1 else 0 end), 0) as refund_paid_count
+         from orders
+         where day_id = $1`,
+        [today],
+      )
+
+      const refundRes = await ctx.db.query(
+        `select coalesce(sum(amount_paise), 0) as exposure_paise from refunds where status = 'owed'`,
+      )
+
+      const slotsWithStats = await Promise.all(
+        ctx.config.slots.map(async (s) => {
+          const usedRes = await ctx.db.query(
+            `select
+               coalesce(sum(case when o.order_source = 'walkin' then ol.qty else 0 end), 0) as walkin_portions,
+               coalesce(sum(case when o.order_source != 'walkin' or o.order_source is null then ol.qty else 0 end), 0) as preorder_portions
+             from orders o
+             join order_lines ol on ol.order_id = o.order_id
+             where o.day_id = $1 and o.slot_id = $2 and o.status != 'RefundPaid'`,
+            [today, s.id],
+          )
+          const preorderPortions = Number(usedRes.rows[0]?.preorder_portions ?? 0)
+          const walkinPortions = Number(usedRes.rows[0]?.walkin_portions ?? 0)
+          const cap = preorderCap(ctx.config.slotCapacity)
+          return {
+            ...s,
+            physicalCapacity: ctx.config.slotCapacity,
+            preorderCap: cap,
+            preorderPortions,
+            walkinPortions,
+            totalPortions: preorderPortions + walkinPortions,
+            preorderRemaining: Math.max(0, cap - preorderPortions),
+            percentPreorderFilled: Math.min(100, Math.round((preorderPortions / cap) * 100)),
+          }
+        }),
+      )
+
+      const s = statsRes.rows[0]
+      sendJson(res, 200, {
+        dayId: today,
+        currentTimeSec: sod,
+        orderWindow: ctx.config.orderWindow,
+        isWindowOpen:
+          sod >= ctx.config.orderWindow.openSec &&
+          sod < ctx.config.orderWindow.cutoffSec - 120,
+        summary: {
+          totalOrders: Number(s?.total_orders ?? 0),
+          preordersCount: Number(s?.preorders_count ?? 0),
+          walkinsCount: Number(s?.walkins_count ?? 0),
+          totalPaise: Number(s?.total_paise ?? 0),
+          placedCount: Number(s?.placed_count ?? 0),
+          preparingCount: Number(s?.preparing_count ?? 0),
+          readyCount: Number(s?.ready_count ?? 0),
+          servedCount: Number(s?.served_count ?? 0),
+          forfeitedCount: Number(s?.forfeited_count ?? 0),
+          refundOwedCount: Number(s?.refund_owed_count ?? 0),
+          refundPaidCount: Number(s?.refund_paid_count ?? 0),
+          refundExposurePaise: Number(refundRes.rows[0]?.exposure_paise ?? 0),
+        },
+        slots: slotsWithStats,
+      })
+    } catch (e) {
+      sendError(res, 500, (e as Error).message)
+    }
+    return true
+  }
+
+  // 14d. POST /api/pos/order (Walk-in counter order creation at POS)
+  if (req.method === 'POST' && pathname === '/api/pos/order') {
+    try {
+      const body = await readJsonBody(req)
+      const nowSec = Math.floor(Date.now() / 1000)
+      const today = dayId(nowSec)
+      const slotId = Number(body.slotId ?? 0)
+      const customerName = String(body.customerName || 'Walk-in Student').slice(0, 100)
+      const lines = Array.isArray(body.lines) ? body.lines : []
+      const paymentMethod = String(body.paymentMethod || 'UPI')
+
+      if (lines.length === 0) {
+        sendError(res, 400, 'Order must contain at least 1 item')
+        return true
+      }
+
+      let totalPaise = 0
+      for (const l of lines) {
+        const itemCfg = ctx.config.items.find((it) => it.id === Number(l.itemId))
+        const price = itemCfg ? itemCfg.pricePaise : Number(l.pricePaise || 0)
+        const qty = Number(l.qty || 1)
+        totalPaise += price * qty
+      }
+
+      const tokenRes = await ctx.db.query(
+        `select coalesce(max(token_no), 0) + 1 as next_token from orders where day_id = $1 and slot_id = $2`,
+        [today, slotId],
+      )
+      const tokenNo = Number(tokenRes.rows[0]?.next_token ?? 1)
+
+      const idRes = await ctx.db.query(
+        `select coalesce(max(order_id), 10000) + 1 as next_id from orders`,
+      )
+      const orderId = BigInt(idRes.rows[0]?.next_id ?? 10001)
+      const paymentRef = `pos_${orderId}_${nowSec}`
+
+      await ctx.db.query(
+        `insert into orders (
+           order_id, student, day_id, slot_id, token_no, payment_ref, total_paise,
+           status, prep_status, order_source, customer_name, placed_at, placed_tx, last_event_block, last_event_log
+         ) values (
+           $1, $2, $3, $4, $5, $6, $7,
+           'Placed', 'Queued', 'walkin', $8, now(), $9, 0, 0
+         )`,
+        [
+          orderId,
+          ctx.keys.DEMO_STUDENT_PK.address.toLowerCase(),
+          today,
+          slotId,
+          tokenNo,
+          paymentRef,
+          totalPaise,
+          customerName,
+          `pos_tender_${paymentMethod.toLowerCase()}`,
+        ],
+      )
+
+      for (let i = 0; i < lines.length; i++) {
+        const l = lines[i]
+        const itemCfg = ctx.config.items.find((it) => it.id === Number(l.itemId))
+        const price = itemCfg ? itemCfg.pricePaise : Number(l.pricePaise || 0)
+        const qty = Number(l.qty || 1)
+        await ctx.db.query(
+          `insert into order_lines (order_id, line_no, item_id, qty, unit_price_paise)
+           values ($1, $2, $3, $4, $5)
+           on conflict do nothing`,
+          [orderId, i, Number(l.itemId), qty, price],
+        )
+      }
+
+      await ctx.db.query(
+        `insert into audit_log (actor, action, detail)
+         values ('pos_cashier', 'walkin_order_placed', $1::jsonb)`,
+        [
+          JSON.stringify({
+            orderId: Number(orderId),
+            tokenNo,
+            totalPaise,
+            paymentMethod,
+            customerName,
+          }),
+        ],
+      )
+
+      sendJson(res, 201, {
+        ok: true,
+        orderId: Number(orderId),
+        tokenNo,
+        totalPaise,
+        slotId,
+        paymentMethod,
+        customerName,
+        placedAt: new Date().toISOString(),
+      })
+    } catch (e) {
+      sendError(res, 400, (e as Error).message)
     }
     return true
   }

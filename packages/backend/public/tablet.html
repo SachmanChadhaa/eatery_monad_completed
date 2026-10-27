@@ -3,43 +3,159 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-  <title>CanteenPOS · Tablet KDS & Counter</title>
+  <title>CanteenPOS · Kitchen Tablet System (KDS)</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Newsreader:opsz,wght@6..72,500;6..72,600&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700;800&family=Space+Grotesk:wght@500;600;700;800&family=Syne:wght@700;800&display=swap">
   <link rel="stylesheet" href="/styles.css">
   <script src="/noble-secp256k1.js"></script>
   <script src="/jsqr.js"></script>
   <script src="/qr-engine.js"></script>
 </head>
-<body>
+<body style="background:var(--canvas);">
+  <!-- Ticker Tape Marquee -->
+  <div class="hazard-strip">
+    <div class="hazard-strip-inner">
+      /// MONAD TABLET KDS /// COUNTER CHALLENGE PROTOCOL /// HARD-CAP TICKETS /// ZERO-GAS SETTLEMENT /// LIVE ON-CHAIN SYNC /// MONAD TABLET KDS /// COUNTER CHALLENGE PROTOCOL /// HARD-CAP TICKETS /// ZERO-GAS SETTLEMENT /// LIVE ON-CHAIN SYNC ///
+    </div>
+  </div>
+  <!-- Header Bar -->
   <header class="header-bar">
     <div class="brand-group">
-      <h1 class="brand-title">Tablet KDS</h1>
-      <span class="brand-badge">COUNTER MODE</span>
+      <h1 class="brand-title">Kitchen KDS</h1>
+      <span class="brand-badge" style="background:var(--hazard-orange);color:#000;font-weight:800;">PREP TABLET</span>
     </div>
+
+    <!-- Kitchen Navigation Links -->
     <div class="nav-links">
-      <button class="nav-btn active" id="tab-counter" onclick="switchTab('counter')">Counter QR</button>
-      <button class="nav-btn" id="tab-queue" onclick="switchTab('queue')">Live Queue</button>
-      <button class="nav-btn" id="tab-prep" onclick="switchTab('prep')">Prep Summary</button>
-      <button class="nav-btn" id="tab-stock" onclick="switchTab('stock')">Sold Out</button>
+      <button class="nav-btn active" id="tab-btn-kds" onclick="switchTabletTab('kds')">🍳 Live Prep Board</button>
+      <button class="nav-btn" id="tab-btn-prep" onclick="switchTabletTab('prep')">📋 Morning Baseline</button>
+      <button class="nav-btn" id="tab-btn-counter" onclick="switchTabletTab('counter')">📱 Counter QR</button>
+      <button class="nav-btn" id="tab-btn-stock" onclick="switchTabletTab('stock')">Sold Out</button>
+      <a href="/pos" class="nav-btn" style="color:var(--acid-lime);border:1px solid var(--acid-lime);">Canteen POS ↗</a>
+      <a href="/" class="nav-btn" style="color:var(--electric-cyan);">Student Menu ↗</a>
+    </div>
+
+    <!-- Quick Tablet Controls -->
+    <div style="display:flex;align-items:center;gap:8px;">
+      <button type="button" class="quiet" id="btn-sound-toggle" onclick="toggleKitchenSound()" style="padding:6px 10px;font-size:0.8rem;">
+        🔔 Audio: ON
+      </button>
+      <button type="button" class="quiet" onclick="toggleFullscreen()" style="padding:6px 10px;font-size:0.8rem;">
+        ⛶ Kiosk
+      </button>
     </div>
   </header>
 
-  <main class="container wide">
-    <!-- Status Strip (spec 8.1) -->
-    <div class="strip">
-      <span class="pill ok" id="device-auth-pill">Device: Authorized</span>
-      <span class="pill live" id="gas-pill">Gas: 0.18 MON</span>
-      <span class="pill" id="sync-pill">Head Sync: Live</span>
-      <span class="pill" id="chal-timer-pill">Challenge Rotates: 30s</span>
+  <main class="container wide" style="max-width:1400px;padding:16px;">
+    <!-- Kitchen Status & Filter Strip -->
+    <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;margin-bottom:12px;">
+      <div class="strip">
+        <span class="pill ok" id="kds-sync-pill">KDS Live Sync (3s)</span>
+        <span class="pill live" id="kds-device-pill">Device: 0x0f78...3A36</span>
+        <span class="pill" id="kds-gas-pill">Gas: 0.18 MON</span>
+      </div>
+
+      <!-- Slot Rush Filter Selector -->
+      <div style="display:flex;align-items:center;gap:6px;">
+        <span style="font-family:var(--mono);font-size:0.75rem;color:var(--cream-dim);text-transform:uppercase;font-weight:700;">Filter Slot:</span>
+        <div style="display:flex;gap:4px;" id="kds-slot-pills">
+          <button type="button" class="quiet active" style="padding:4px 8px;font-size:0.75rem;" onclick="filterKdsSlot('', this)">All</button>
+          <button type="button" class="quiet" style="padding:4px 8px;font-size:0.75rem;" onclick="filterKdsSlot('0', this)">12:00</button>
+          <button type="button" class="quiet" style="padding:4px 8px;font-size:0.75rem;" onclick="filterKdsSlot('1', this)">12:30</button>
+          <button type="button" class="quiet" style="padding:4px 8px;font-size:0.75rem;" onclick="filterKdsSlot('2', this)">13:00</button>
+          <button type="button" class="quiet" style="padding:4px 8px;font-size:0.75rem;" onclick="filterKdsSlot('3', this)">13:30</button>
+        </div>
+      </div>
     </div>
 
-    <!-- TAB 1: Counter Mode (Rotating Challenge QR + Scanner) -->
-    <div id="view-counter" style="display:grid;grid-template-columns:1fr 1fr;gap:20px;">
-      <!-- Challenge QR Box -->
+    <!-- Active Prep Tally Bar (Aggregated Portions across all active tickets) -->
+    <div class="kds-tally-bar" id="kds-tally-bar" style="margin-bottom:16px;">
+      <span style="font-family:var(--mono);font-weight:800;font-size:0.85rem;color:var(--acid-lime);text-transform:uppercase;letter-spacing:0.06em;">
+        🍳 BATCH PREP TALLY:
+      </span>
+      <div id="kds-tally-items" style="display:flex;gap:8px;flex-wrap:wrap;font-size:0.85rem;">
+        <span style="color:var(--cream-dim);">No active items to cook</span>
+      </div>
+    </div>
+
+    <!-- TAB 1: 4-Stage Interactive KDS Preparation Board -->
+    <section id="view-kds-board">
+      <div class="kds-kanban">
+        <!-- COLUMN 1: TO PREPARE / QUEUED -->
+        <div class="kds-column" id="col-queued-box">
+          <div class="kds-col-header">
+            <span class="kds-col-title" style="color:var(--violent-light);">
+              📋 To Cook
+            </span>
+            <span class="pill" id="count-col-queued">0</span>
+          </div>
+          <div id="col-queued-tickets" style="display:flex;flex-direction:column;gap:12px;overflow-y:auto;">
+            <!-- Dynamically populated -->
+          </div>
+        </div>
+
+        <!-- COLUMN 2: IN PREPARATION (COOKING) -->
+        <div class="kds-column" id="col-cooking-box" style="border-color:var(--hazard-orange);">
+          <div class="kds-col-header">
+            <span class="kds-col-title" style="color:var(--hazard-orange);">
+              🍳 In Prep (Cooking)
+            </span>
+            <span class="pill warn" id="count-col-cooking">0</span>
+          </div>
+          <div id="col-cooking-tickets" style="display:flex;flex-direction:column;gap:12px;overflow-y:auto;">
+            <!-- Dynamically populated -->
+          </div>
+        </div>
+
+        <!-- COLUMN 3: READY / CHECKED IN -->
+        <div class="kds-column" id="col-ready-box" style="border-color:var(--acid-lime);">
+          <div class="kds-col-header">
+            <span class="kds-col-title" style="color:var(--acid-lime);">
+              🛎️ Ready / Counter
+            </span>
+            <span class="pill ok" id="count-col-ready">0</span>
+          </div>
+          <div id="col-ready-tickets" style="display:flex;flex-direction:column;gap:12px;overflow-y:auto;">
+            <!-- Dynamically populated -->
+          </div>
+        </div>
+
+        <!-- COLUMN 4: RECENTLY SERVED -->
+        <div class="kds-column" id="col-served-box">
+          <div class="kds-col-header">
+            <span class="kds-col-title" style="color:var(--ok);">
+              ✅ Served
+            </span>
+            <span class="pill" id="count-col-served">0</span>
+          </div>
+          <div id="col-served-tickets" style="display:flex;flex-direction:column;gap:12px;overflow-y:auto;">
+            <!-- Dynamically populated -->
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- TAB 2: Morning Kitchen Prep Summary (Baseline Demand) -->
+    <section id="view-prep" class="bento-card" style="display:none;">
+      <div class="card-header">
+        <div>
+          <h2 class="card-title">Morning Kitchen Prep Summary (Locked Baseline)</h2>
+          <div class="card-subtitle">Aggregated baseline demand from on-chain pre-orders frozen at 09:00 IST. Cooks batch-prep this baseline before rushes begin.</div>
+        </div>
+        <button class="quiet" onclick="loadMorningPrepSummary()">↻ Refresh</button>
+      </div>
+
+      <div id="prep-table-container" style="margin-top:14px;">
+        <!-- Dynamically populated -->
+      </div>
+    </section>
+
+    <!-- TAB 3: Pickup Counter Mode (Rotating Challenge QR + Scanner) -->
+    <section id="view-counter" style="display:none;grid-template-columns:1fr 1fr;gap:20px;">
+      <!-- Rotating Challenge QR -->
       <div class="bento-card" style="text-align:center;align-items:center;">
-        <h2 class="card-title">Rotating Tablet Challenge QR</h2>
-        <div class="card-subtitle">Students scan this QR to generate student-signed proof of presence.</div>
+        <h2 class="card-title">Rotating Tablet Challenge QR (Spec 7.3)</h2>
+        <div class="card-subtitle">Students scan this QR at counter to generate student-signed presence proof.</div>
         
         <div id="challenge-qr-container" style="margin:16px auto;display:flex;justify-content:center;"></div>
         
@@ -55,7 +171,7 @@
       <!-- Scanner Box -->
       <div class="bento-card">
         <h2 class="card-title">Scan Student Response QR</h2>
-        <div class="card-subtitle">Point tablet camera at the student's phone.</div>
+        <div class="card-subtitle">Point tablet camera at student's phone.</div>
 
         <div class="scanner-box" style="margin:10px 0;">
           <video id="tablet-scanner-video" class="scanner-video" playsinline></video>
@@ -65,126 +181,164 @@
           </div>
         </div>
 
-        <details style="font-size:0.8rem;color:var(--cream-dim);">
-          <summary style="cursor:pointer;">Or Paste Response JSON manually</summary>
-          <div style="display:grid;gap:6px;margin-top:6px;">
-            <textarea id="manual-response-input" rows="3" placeholder='{"v":1,"orderId":"1",...}' style="font-family:var(--mono);font-size:0.75rem;"></textarea>
-            <button class="secondary" onclick="submitManualResponse()">Process Response</button>
-          </div>
-        </details>
-
-        <!-- Big Result Card (Spec 8.1) -->
-        <div id="scan-result-card" style="display:none;padding:16px;border-radius:var(--radius-md);text-align:center;margin-top:10px;">
-          <div style="font-family:var(--mono);font-size:2rem;font-weight:700;" id="result-token">TOKEN #1</div>
-          <div style="font-size:1.1rem;color:var(--cream);font-weight:600;margin-top:4px;" id="result-items">2 Vada Pav</div>
-          <div style="font-size:0.85rem;color:var(--cream-muted);margin-top:4px;" id="result-status">CHECKED IN · READY TO SERVE</div>
-          <button style="margin-top:12px;" id="btn-serve-immediate" onclick="markServedCurrent()">Mark Served</button>
+        <!-- Scan Result Card -->
+        <div id="scan-result-card" style="display:none;padding:16px;border-radius:var(--radius-sm);border:2.5px solid #000;text-align:center;margin-top:10px;box-shadow:4px 4px 0px #000;">
+          <div style="font-family:var(--mono);font-size:2rem;font-weight:900;" id="result-token">TOKEN #1</div>
+          <div style="font-size:1.1rem;color:#ffffff;font-weight:700;margin-top:4px;" id="result-items">2 Vada Pav</div>
+          <div style="font-size:0.85rem;margin-top:4px;font-weight:700;" id="result-status">CHECKED IN · READY TO SERVE</div>
+          <button style="margin-top:12px;background:var(--ok);color:#000;" id="btn-serve-immediate" onclick="markServedCurrent()">
+            📦 Mark Served On-Chain
+          </button>
         </div>
       </div>
-    </div>
-
-    <!-- TAB 2: Live Queue Board (Placed, CheckedIn, Served) -->
-    <div id="view-queue" style="display:none;">
-      <div class="card-header" style="margin-bottom:16px;">
-        <div style="display:flex;gap:12px;align-items:center;">
-          <h2 class="card-title" style="margin:0;">Kitchen Orders Queue</h2>
-          <select id="queue-slot-filter" onchange="loadQueue()" style="width:auto;padding:6px 12px;">
-            <option value="">All Slots</option>
-            <option value="0">Slot 12:30</option>
-            <option value="1">Slot 13:15</option>
-          </select>
-        </div>
-        <button class="quiet" onclick="loadQueue()">Refresh Queue</button>
-      </div>
-
-      <div class="queue-board">
-        <!-- Col 1: Placed -->
-        <div class="queue-col">
-          <div class="queue-header">
-            <span class="queue-title">Placed</span>
-            <span class="pill" id="count-placed">0</span>
-          </div>
-          <div id="col-placed" style="display:grid;gap:10px;"></div>
-        </div>
-
-        <!-- Col 2: Checked In -->
-        <div class="queue-col" style="border-color:var(--peach);">
-          <div class="queue-header">
-            <span class="queue-title" style="color:var(--peach);">Checked In</span>
-            <span class="pill ok" id="count-checkedin">0</span>
-          </div>
-          <div id="col-checkedin" style="display:grid;gap:10px;"></div>
-        </div>
-
-        <!-- Col 3: Served -->
-        <div class="queue-col">
-          <div class="queue-header">
-            <span class="queue-title" style="color:var(--ok);">Served</span>
-            <span class="pill" id="count-served">0</span>
-          </div>
-          <div id="col-served" style="display:grid;gap:10px;"></div>
-        </div>
-      </div>
-    </div>
-
-    <!-- TAB 3: Prep Summary -->
-    <div id="view-prep" class="bento-card" style="display:none;">
-      <div class="card-header">
-        <div>
-          <h2 class="card-title">Morning Kitchen Prep Summary</h2>
-          <div class="card-subtitle">Aggregated baseline demand by pickup slot. Frozen at 09:00 IST.</div>
-        </div>
-        <button class="quiet" onclick="loadPrepSummary()">Refresh</button>
-      </div>
-
-      <div id="prep-table-container">
-        <!-- Dynamically rendered -->
-      </div>
-    </div>
+    </section>
 
     <!-- TAB 4: Sold Out Toggles -->
-    <div id="view-stock" class="bento-card" style="display:none;">
+    <section id="view-stock" class="bento-card" style="display:none;">
       <div class="card-header">
         <div>
           <h2 class="card-title">Kitchen Inventory & Sold Out Toggles</h2>
           <div class="card-subtitle">Staff never see a wallet. Toggling off marks unserved orders refundable on-chain.</div>
         </div>
       </div>
-
-      <div id="stock-items-container" style="display:grid;gap:12px;">
-        <!-- Dynamically rendered -->
+      <div id="stock-items-container" style="display:grid;gap:12px;margin-top:14px;">
+        <!-- Dynamically populated -->
       </div>
-    </div>
+    </section>
   </main>
 
   <script>
-    // Demo tablet device account (pre-authorized in deployments/10143.json)
+    // Demo tablet device account (pre-authorized in deployments)
     const TABLET_DEVICE = {
       address: '0x0f78BE7C8A0c51Ec454bfe7586d2557974f53A36',
       privateKey: '0x6a09e37b7b8c2247f93f6363d7eb595c4024b40844e0bd0b167e3fdc181f129b'
     };
 
-    let activeTab = 'counter';
+    let activeTabletTab = 'kds';
     let currentChallenge = null;
     let challengeTimer = null;
     let cameraStream = null;
     let lastCheckedOrderId = null;
     let itemsMap = {};
+    let configData = null;
+    let soundEnabled = true;
+    let currentSlotFilter = '';
+    let knownOrdersCache = new Map(); // orderId -> status
+    let audioCtx = null;
 
-    function switchTab(t) {
-      activeTab = t;
+    // Web Audio Synthesizer for Kitchen Chimes
+    function getAudioContext() {
+      if (!audioCtx) {
+        audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      }
+      if (audioCtx.state === 'suspended') {
+        audioCtx.resume();
+      }
+      return audioCtx;
+    }
+
+    function playChime(type) {
+      if (!soundEnabled) return;
+      try {
+        const ctx = getAudioContext();
+        const now = ctx.currentTime;
+
+        if (type === 'new_order') {
+          // Ascending dual-tone chime (520Hz -> 659Hz)
+          const osc1 = ctx.createOscillator();
+          const osc2 = ctx.createOscillator();
+          const gain = ctx.createGain();
+
+          osc1.type = 'sine';
+          osc1.frequency.setValueAtTime(520, now);
+          osc1.frequency.exponentialRampToValueAtTime(659, now + 0.15);
+
+          gain.gain.setValueAtTime(0.2, now);
+          gain.gain.exponentialRampToValueAtTime(0.01, now + 0.35);
+
+          osc1.connect(gain);
+          gain.connect(ctx.destination);
+
+          osc1.start(now);
+          osc1.stop(now + 0.35);
+        } else if (type === 'checked_in') {
+          // Vibrant triple-tone chime (587Hz -> 740Hz -> 880Hz)
+          const osc = ctx.createOscillator();
+          const gain = ctx.createGain();
+
+          osc.type = 'triangle';
+          osc.frequency.setValueAtTime(587, now);
+          osc.frequency.setValueAtTime(740, now + 0.12);
+          osc.frequency.setValueAtTime(880, now + 0.24);
+
+          gain.gain.setValueAtTime(0.25, now);
+          gain.gain.exponentialRampToValueAtTime(0.01, now + 0.5);
+
+          osc.connect(gain);
+          gain.connect(ctx.destination);
+
+          osc.start(now);
+          osc.stop(now + 0.5);
+        } else if (type === 'urgent') {
+          // Urgent warning chime (440Hz -> 330Hz)
+          const osc = ctx.createOscillator();
+          const gain = ctx.createGain();
+
+          osc.type = 'sawtooth';
+          osc.frequency.setValueAtTime(440, now);
+          osc.frequency.setValueAtTime(330, now + 0.15);
+
+          gain.gain.setValueAtTime(0.18, now);
+          gain.gain.exponentialRampToValueAtTime(0.01, now + 0.4);
+
+          osc.connect(gain);
+          gain.connect(ctx.destination);
+
+          osc.start(now);
+          osc.stop(now + 0.4);
+        }
+      } catch (e) {
+        console.warn('Audio chime error:', e);
+      }
+    }
+
+    function toggleKitchenSound() {
+      soundEnabled = !soundEnabled;
+      const btn = document.getElementById('btn-sound-toggle');
+      btn.textContent = soundEnabled ? '🔔 Audio: ON' : '🔕 Audio: MUTED';
+      btn.style.color = soundEnabled ? 'var(--acid-lime)' : 'var(--cream-dim)';
+      if (soundEnabled) playChime('new_order');
+    }
+
+    function toggleFullscreen() {
+      if (!document.fullscreenElement) {
+        document.documentElement.requestFullscreen().catch(() => {});
+      } else {
+        document.exitFullscreen().catch(() => {});
+      }
+    }
+
+    function switchTabletTab(t) {
+      activeTabletTab = t;
       document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
-      const activeBtn = document.getElementById('tab-' + t);
+      const activeBtn = document.getElementById('tab-btn-' + t);
       if (activeBtn) activeBtn.classList.add('active');
 
-      ['counter', 'queue', 'prep', 'stock'].forEach(v => {
-        const el = document.getElementById('view-' + v);
+      ['kds', 'prep', 'counter', 'stock'].forEach(v => {
+        const el = document.getElementById('view-' + (v === 'kds' ? 'kds-board' : v));
         if (el) el.style.display = (v === t ? (v === 'counter' ? 'grid' : 'block') : 'none');
       });
 
-      if (t === 'queue') loadQueue();
-      if (t === 'prep') loadPrepSummary();
+      if (t === 'kds') loadKdsQueue();
+      if (t === 'prep') loadMorningPrepSummary();
       if (t === 'stock') loadStock();
+    }
+
+    function filterKdsSlot(slotId, btn) {
+      currentSlotFilter = slotId;
+      document.querySelectorAll('#kds-slot-pills button').forEach(b => b.classList.remove('active'));
+      if (btn) btn.classList.add('active');
+      loadKdsQueue();
     }
 
     // --- Rotating Challenge QR (Spec 7.3) ---
@@ -199,7 +353,6 @@
         timestamp: now
       };
 
-      // Sign challenge with device key
       const CHAL_TYPEHASH = Noble.keccak_256(
         new TextEncoder().encode("DeviceChallenge(address device,uint8 slotId,bytes32 nonce,uint48 timestamp)")
       );
@@ -242,11 +395,10 @@
         localStorage.setItem('canteenpos_latest_tablet_challenge', JSON.stringify(challengePayload));
       } catch (_) {}
 
-      // Render challenge QR
       const svg = QREngine.renderSvg(JSON.stringify(challengePayload), {
         size: 260,
-        dark: '#F5E6D3',
-        light: '#1E1A18'
+        dark: '#ccff00',
+        light: '#120e24'
       });
       document.getElementById('challenge-qr-container').innerHTML = svg;
       document.getElementById('chal-details').textContent = `Device: ${TABLET_DEVICE.address.slice(0, 10)}... · TS: ${now}`;
@@ -256,9 +408,9 @@
       if (!currentChallenge) return alert('Challenge not ready yet.');
       const jsonStr = JSON.stringify(currentChallenge);
       navigator.clipboard.writeText(jsonStr).then(() => {
-        alert('Challenge JSON copied to clipboard!\n\nNow open Student PWA -> Check-in tab -> paste into "Or Paste Challenge JSON manually", or click "Use Live Tablet Challenge"!');
+        alert('Challenge JSON copied to clipboard!');
       }).catch(() => {
-        prompt('Copy this challenge payload:', jsonStr);
+        prompt('Copy challenge payload:', jsonStr);
       });
     }
 
@@ -271,15 +423,13 @@
           rotateChallenge();
           remaining = 30;
         }
-        document.getElementById('chal-timer-pill').textContent = `Challenge: ${remaining}s`;
       }, 1000);
     }
 
     // --- Tablet Camera Scanner ---
     async function startTabletScanner() {
       const placeholder = document.getElementById('tablet-scanner-placeholder');
-      placeholder.innerHTML = 'Requesting camera permissions...<br><span style="font-size:0.75rem;color:var(--cream-dim);">Please click Allow in your browser popup</span>';
-      placeholder.style.display = 'block';
+      placeholder.innerHTML = 'Activating camera...';
       const video = document.getElementById('tablet-scanner-video');
       cameraStream = await QREngine.startScanner(
         video,
@@ -287,23 +437,12 @@
           processResponseQR(qrText);
         },
         (err) => {
-          placeholder.innerHTML = `
-            <div style="color:var(--bad);font-weight:600;margin-bottom:6px;">⚠️ Camera Access Error</div>
-            <div style="font-size:0.8rem;color:var(--cream-dim);max-width:280px;margin:0 auto 10px auto;">${err.message}</div>
-            <button onclick="startTabletScanner()" style="padding:6px 14px;font-size:0.8rem;">Try Again</button>
-          `;
-          placeholder.style.display = 'block';
+          placeholder.innerHTML = `<span style="color:var(--bad);">Camera error: ${err.message}</span>`;
         }
       );
       if (cameraStream) {
         placeholder.style.display = 'none';
       }
-    }
-
-    function submitManualResponse() {
-      const txt = document.getElementById('manual-response-input').value.trim();
-      if (!txt) return alert('Enter response QR JSON');
-      processResponseQR(txt);
     }
 
     async function processResponseQR(payloadRaw) {
@@ -315,7 +454,6 @@
 
         lastCheckedOrderId = data.orderId;
 
-        // Submit check-in to Monad
         const res = await fetch('/api/orders/check-in', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -324,17 +462,19 @@
 
         const card = document.getElementById('scan-result-card');
         if (res.ok) {
+          playChime('checked_in');
           card.style.display = 'block';
-          card.style.background = 'rgba(94, 158, 116, 0.2)';
-          card.style.border = '1px solid var(--ok)';
+          card.style.background = '#0f2418';
+          card.style.borderColor = 'var(--ok)';
           document.getElementById('result-token').textContent = `TOKEN #${data.orderId}`;
           document.getElementById('result-status').textContent = 'CHECKED IN SUCCESS · HAND OVER FOOD';
           document.getElementById('result-status').style.color = 'var(--ok)';
+          loadKdsQueue();
         } else {
           const err = await res.json();
           card.style.display = 'block';
-          card.style.background = 'rgba(217, 83, 79, 0.2)';
-          card.style.border = '1px solid var(--bad)';
+          card.style.background = '#280b14';
+          card.style.borderColor = 'var(--bad)';
           document.getElementById('result-token').textContent = `ORDER #${data.orderId}`;
           document.getElementById('result-status').textContent = 'CHECK-IN FAILED: ' + (err.error || 'Reverted');
           document.getElementById('result-status').style.color = 'var(--bad)';
@@ -355,94 +495,222 @@
         alert(`Order #${lastCheckedOrderId} marked SERVED on chain!`);
         document.getElementById('scan-result-card').style.display = 'none';
         lastCheckedOrderId = null;
+        loadKdsQueue();
       } else {
         const err = await res.json();
         alert('Serve failed: ' + (err.error || 'unknown'));
       }
     }
 
-    async function markServedOrder(orderId) {
-      const res = await fetch('/api/orders/serve', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ orderId })
-      });
-      if (res.ok) {
-        loadQueue();
-      } else {
-        const err = await res.json();
-        alert('Serve error: ' + (err.error || 'unknown'));
+    // --- Interactive KDS Preparation Workflow ---
+    async function updatePrepStatus(orderId, prepStatus) {
+      try {
+        const res = await fetch('/api/kds/prep-status', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ orderId, prepStatus })
+        });
+        if (res.ok) {
+          if (prepStatus === 'Ready') playChime('checked_in');
+          loadKdsQueue();
+        } else {
+          const err = await res.json();
+          alert('Update error: ' + (err.error || 'Failed'));
+        }
+      } catch (e) {
+        alert('Status error: ' + e.message);
       }
     }
 
-    // --- Live Queue Loading ---
-    async function loadQueue() {
-      const slotFilter = document.getElementById('queue-slot-filter').value;
-      const res = await fetch(`/api/kds/queue${slotFilter !== '' ? '?slotId=' + slotFilter : ''}`);
-      const orders = await res.json();
-
-      const placed = [];
-      const checkedIn = [];
-      const served = [];
-
-      for (const o of orders) {
-        if (o.status === 'Placed') placed.push(o);
-        else if (o.status === 'CheckedIn') checkedIn.push(o);
-        else if (o.status === 'Served') served.push(o);
-      }
-
-      document.getElementById('count-placed').textContent = placed.length;
-      document.getElementById('count-checkedin').textContent = checkedIn.length;
-      document.getElementById('count-served').textContent = served.length;
-
-      const renderTicket = (o, isCheckedIn = false) => {
-        const linesStr = o.lines.map(l => `${l.qty}x ${itemsMap[l.itemId] || 'Item #' + l.itemId}`).join(', ');
-        return `
-          <div class="order-ticket ${isCheckedIn ? 'highlight' : ''}">
-            <div class="ticket-top">
-              <span class="ticket-token">Token #${o.token_no}</span>
-              <span class="pill">${new Date(o.placed_at).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</span>
-            </div>
-            <div class="ticket-items">${linesStr || 'Pre-order Items'}</div>
-            <div style="display:flex;justify-content:space-between;align-items:center;margin-top:6px;">
-              <span style="font-family:var(--mono);font-size:0.75rem;color:var(--cream-dim);">#${o.order_id}</span>
-              ${isCheckedIn ? `<button style="padding:6px 12px;font-size:0.8rem;" onclick="markServedOrder(${o.order_id})">Serve</button>` : ''}
-            </div>
-          </div>
-        `;
-      };
-
-      document.getElementById('col-placed').innerHTML = placed.map(o => renderTicket(o)).join('') || '<div style="color:var(--cream-dim);text-align:center;padding:20px;">None</div>';
-      document.getElementById('col-checkedin').innerHTML = checkedIn.map(o => renderTicket(o, true)).join('') || '<div style="color:var(--cream-dim);text-align:center;padding:20px;">None</div>';
-      document.getElementById('col-served').innerHTML = served.slice(0, 10).map(o => renderTicket(o)).join('') || '<div style="color:var(--cream-dim);text-align:center;padding:20px;">None</div>';
+    function toggleItemChecked(el) {
+      el.classList.toggle('done');
     }
 
-    // --- Prep Summary Loading ---
-    async function loadPrepSummary() {
+    // --- KDS Live Queue Loading & Stage Sorting ---
+    async function loadKdsQueue() {
+      try {
+        const url = `/api/kds/queue${currentSlotFilter !== '' ? '?slotId=' + currentSlotFilter : ''}`;
+        const res = await fetch(url);
+        const orders = await res.json();
+
+        const queued = [];
+        const cooking = [];
+        const ready = [];
+        const served = [];
+
+        const now = Date.now();
+        const tallyMap = {}; // itemId -> qty
+
+        for (const o of orders) {
+          // Detect new check-ins for audio alert
+          const prevStatus = knownOrdersCache.get(o.order_id);
+          if (prevStatus && prevStatus !== 'CheckedIn' && o.status === 'CheckedIn') {
+            playChime('checked_in');
+          }
+          knownOrdersCache.set(o.order_id, o.status);
+
+          // Calculate tally for items needing to be prepared
+          const isPending = o.status !== 'Served' && o.status !== 'Forfeited' && o.status !== 'RefundPaid';
+          if (isPending && (o.prep_status === 'Queued' || o.prep_status === 'Preparing')) {
+            for (const l of o.lines || []) {
+              tallyMap[l.itemId] = (tallyMap[l.itemId] || 0) + l.qty;
+            }
+          }
+
+          // Sort into 4 columns
+          if (o.status === 'Served') {
+            served.push(o);
+          } else if (o.status === 'CheckedIn' || o.prep_status === 'Ready') {
+            ready.push(o);
+          } else if (o.prep_status === 'Preparing') {
+            cooking.push(o);
+          } else {
+            queued.push(o);
+          }
+        }
+
+        // Render counts
+        document.getElementById('count-col-queued').textContent = queued.length;
+        document.getElementById('count-col-cooking').textContent = cooking.length;
+        document.getElementById('count-col-ready').textContent = ready.length;
+        document.getElementById('count-col-served').textContent = served.length;
+
+        // Render Active Prep Tally
+        const tallyEntries = Object.entries(tallyMap);
+        const tallyCont = document.getElementById('kds-tally-items');
+        if (tallyEntries.length === 0) {
+          tallyCont.innerHTML = '<span style="color:var(--cream-dim);">All tickets prepared & ready!</span>';
+        } else {
+          tallyCont.innerHTML = tallyEntries.map(([itemId, qty]) => `
+            <span style="background:#000;border:1.5px solid var(--violent-neon);padding:3px 8px;border-radius:var(--radius-xs);">
+              <strong style="color:var(--acid-lime);">${qty}x</strong> ${itemsMap[itemId] || 'Item #' + itemId}
+            </span>
+          `).join('');
+        }
+
+        // Render Ticket Card
+        const renderKdsTicket = (o, stage) => {
+          const placedTime = new Date(o.placed_at).getTime();
+          const elapsedMins = Math.max(0, Math.floor((now - placedTime) / 60000));
+          
+          let presentMins = 0;
+          let isUrgent = false;
+          if (o.present_at) {
+            presentMins = Math.max(0, Math.floor((now - new Date(o.present_at).getTime()) / 60000));
+            if (presentMins >= 10 && o.status !== 'Served') {
+              isUrgent = true;
+            }
+          }
+
+          const slotText = configData?.slots?.find(s => s.id === o.slot_id)?.startLabel || `Slot ${o.slot_id}`;
+          const isCheckedIn = o.status === 'CheckedIn';
+
+          let cardClass = 'kds-ticket';
+          if (stage === 'cooking') cardClass += ' cooking';
+          if (stage === 'ready') cardClass += ' ready';
+          if (isCheckedIn) cardClass += ' checked-in';
+          if (isUrgent) cardClass += ' urgent';
+
+          const itemsHtml = (o.lines || []).map(l => `
+            <div class="kds-item-row" onclick="toggleItemChecked(this)">
+              <span class="kds-item-qty">${l.qty}x</span>
+              <span>${itemsMap[l.itemId] || 'Item #' + l.itemId}</span>
+            </div>
+          `).join('');
+
+          let actionButtons = '';
+          if (stage === 'queued') {
+            actionButtons = `
+              <button type="button" onclick="updatePrepStatus(${o.order_id}, 'Preparing')" style="background:var(--hazard-orange);color:#000;font-weight:800;padding:8px 12px;font-size:0.85rem;">
+                🍳 Start Cooking
+              </button>
+            `;
+          } else if (stage === 'cooking') {
+            actionButtons = `
+              <button type="button" onclick="updatePrepStatus(${o.order_id}, 'Ready')" style="background:var(--acid-lime);color:#000;font-weight:800;padding:8px 12px;font-size:0.85rem;">
+                ✅ Mark Ready / Plated
+              </button>
+            `;
+          } else if (stage === 'ready') {
+            actionButtons = `
+              <button type="button" onclick="updatePrepStatus(${o.order_id}, 'Served')" style="background:var(--ok);color:#000;font-weight:800;padding:10px 14px;font-size:0.9rem;">
+                📦 Hand Over & Serve
+              </button>
+            `;
+          }
+
+          return `
+            <div class="${cardClass}">
+              ${isCheckedIn ? `
+                <div style="background:var(--ok);color:#000;font-family:var(--mono);font-size:0.75rem;font-weight:900;padding:3px 8px;border-radius:var(--radius-xs);text-align:center;">
+                  🛎️ AT COUNTER · READY FOR HANDOVER
+                </div>
+              ` : ''}
+
+              ${isUrgent ? `
+                <div style="background:var(--bad);color:#fff;font-family:var(--mono);font-size:0.75rem;font-weight:900;padding:3px 8px;border-radius:var(--radius-xs);text-align:center;">
+                  ⚠️ URGENT (>10m)! SERVE BEFORE GRACE EXPIRES
+                </div>
+              ` : ''}
+
+              <div style="display:flex;justify-content:space-between;align-items:baseline;">
+                <span class="kds-ticket-token">TOKEN #${o.token_no}</span>
+                <span class="brand-badge">${slotText}</span>
+              </div>
+
+              <div style="display:flex;justify-content:space-between;font-size:0.75rem;color:var(--cream-dim);">
+                <span>Order #${o.order_id} · ${o.order_source || 'preorder'}</span>
+                <span class="kds-timer ${stage === 'cooking' ? 'cooking' : isUrgent ? 'warning' : 'normal'}">
+                  ${stage === 'cooking' ? 'Cooking ' + elapsedMins + 'm' : elapsedMins + 'm ago'}
+                </span>
+              </div>
+
+              <div style="border-top:1.5px solid #000;border-bottom:1.5px solid #000;padding:8px 0;display:flex;flex-direction:column;gap:6px;">
+                ${itemsHtml || '<span style="color:var(--cream-dim);">No items</span>'}
+              </div>
+
+              <div style="margin-top:2px;">
+                ${actionButtons}
+              </div>
+            </div>
+          `;
+        };
+
+        document.getElementById('col-queued-tickets').innerHTML = queued.map(o => renderKdsTicket(o, 'queued')).join('') || '<div style="color:var(--cream-dim);text-align:center;padding:24px;">No queued orders</div>';
+        document.getElementById('col-cooking-tickets').innerHTML = cooking.map(o => renderKdsTicket(o, 'cooking')).join('') || '<div style="color:var(--cream-dim);text-align:center;padding:24px;">No orders cooking</div>';
+        document.getElementById('col-ready-tickets').innerHTML = ready.map(o => renderKdsTicket(o, 'ready')).join('') || '<div style="color:var(--cream-dim);text-align:center;padding:24px;">No ready orders</div>';
+        document.getElementById('col-served-tickets').innerHTML = served.slice(0, 8).map(o => renderKdsTicket(o, 'served')).join('') || '<div style="color:var(--cream-dim);text-align:center;padding:24px;">No served orders</div>';
+      } catch (err) {
+        console.warn('KDS queue error:', err);
+      }
+    }
+
+    // --- Morning Prep Summary Loading ---
+    async function loadMorningPrepSummary() {
       const res = await fetch('/api/kds/prep');
       const rows = await res.json();
       const cont = document.getElementById('prep-table-container');
 
       if (rows.length === 0) {
-        cont.innerHTML = '<div style="text-align:center;color:var(--cream-dim);padding:24px;">No prep items for today yet.</div>';
+        cont.innerHTML = '<div style="text-align:center;color:var(--cream-dim);padding:24px;">No morning prep baseline orders yet.</div>';
         return;
       }
 
       cont.innerHTML = `
-        <table style="width:100%;border-collapse:collapse;margin-top:12px;font-size:0.95rem;">
+        <table>
           <thead>
-            <tr style="border-bottom:1px solid var(--line);text-align:left;color:var(--cream-muted);font-family:var(--mono);font-size:0.8rem;">
-              <th style="padding:10px;">SLOT</th>
-              <th style="padding:10px;">ITEM</th>
-              <th style="padding:10px;text-align:right;">TOTAL PORTIONS</th>
+            <tr>
+              <th>RUSH SLOT</th>
+              <th>ITEM</th>
+              <th style="text-align:right;">PORTIONS TO PREP</th>
             </tr>
           </thead>
           <tbody>
             ${rows.map(r => `
-              <tr style="border-bottom:1px solid rgba(255,255,255,0.05);">
-                <td style="padding:10px;font-family:var(--mono);">Slot ${r.slot_id}</td>
-                <td style="padding:10px;font-weight:600;">${itemsMap[r.item_id] || 'Item #' + r.item_id}</td>
-                <td style="padding:10px;text-align:right;font-family:var(--mono);font-size:1.1rem;font-weight:700;color:var(--peach);">${r.total_qty}</td>
+              <tr>
+                <td style="font-family:var(--mono);font-weight:700;">Slot ${r.slot_id} Rush</td>
+                <td style="font-weight:700;color:#fff;">${itemsMap[r.item_id] || 'Item #' + r.item_id}</td>
+                <td style="text-align:right;font-family:var(--mono);font-size:1.2rem;font-weight:900;color:var(--acid-lime);">${r.total_qty}</td>
               </tr>
             `).join('')}
           </tbody>
@@ -453,14 +721,14 @@
     // --- Sold Out Toggles ---
     async function loadStock() {
       const cfgRes = await fetch('/api/config');
-      const cfg = await cfgRes.json();
+      configData = await cfgRes.json();
       const cont = document.getElementById('stock-items-container');
 
-      cont.innerHTML = cfg.items.map(it => `
+      cont.innerHTML = configData.items.map(it => `
         <div class="item-row" style="background:var(--surface);">
           <div class="item-info">
             <span class="item-name">${it.name}</span>
-            <span class="item-price">${(it.pricePaise / 100000).toFixed(3)} MON</span>
+            <span class="item-price">₹${(it.pricePaise / 100).toFixed(2)} · ${(it.pricePaise / 100000).toFixed(3)} MON</span>
           </div>
           <div>
             <button class="${it.available ? 'secondary' : ''}" style="${it.available ? '' : 'background:var(--bad);'}" onclick="toggleAvailability(${it.id}, ${!it.available})">
@@ -472,7 +740,7 @@
     }
 
     async function toggleAvailability(itemId, available) {
-      if (!confirm(`Are you sure you want to mark this item ${available ? 'AVAILABLE' : 'SOLD OUT'} on-chain?`)) return;
+      if (!confirm(`Mark item ${available ? 'AVAILABLE' : 'SOLD OUT'} on-chain?`)) return;
       const res = await fetch('/api/admin/availability', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -529,9 +797,16 @@
 
     window.addEventListener('load', async () => {
       const cfgRes = await fetch('/api/config');
-      const cfg = await cfgRes.json();
-      for (const it of cfg.items) itemsMap[it.id] = it.name;
+      configData = await cfgRes.json();
+      for (const it of configData.items) itemsMap[it.id] = it.name;
+      
       startChallengeRotation();
+      loadKdsQueue();
+
+      // Auto-poll KDS every 3 seconds for live kitchen updates
+      setInterval(() => {
+        if (activeTabletTab === 'kds') loadKdsQueue();
+      }, 3000);
     });
   </script>
 </body>
